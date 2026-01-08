@@ -7,15 +7,14 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 
 # Настройка логирования
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s) - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# Получаем токен из переменных окружения
 TOKEN = os.environ.get("BOT_TOKEN")
 
-# Словарь стилей TextAlchemic
+# Стили TextAlchemic
 STYLES = {
     "phoenix": {
         "name": "🔥 ФЕНИКС",
@@ -49,7 +48,7 @@ STYLES = {
     }
 }
 
-# Хранение состояния пользователей
+# Хранение данных пользователей
 user_data_store = {}
 
 # ==================== ФУНКЦИИ ПРЕОБРАЗОВАНИЯ ТЕКСТА ====================
@@ -60,35 +59,28 @@ def apply_phoenix(text):
     
     emotional_words = ["невероятно", "потрясающе", "фантастически", "волшебно", 
                       "восхитительно", "изумительно", "захватывающе"]
-    intensifiers = ["очень", "крайне", "невероятно", "необычайно", "особенно"]
     
-    # Преобразуем текст
     words = text.split()
     
-    # 1. Добавляем эмоциональные слова
+    # Добавляем эмоциональные слова
     if len(words) > 1:
         for _ in range(min(2, len(words) // 3)):
             pos = random.randint(0, len(words)-1)
             words.insert(pos, random.choice(emotional_words))
     
     result = " ".join(words)
-    
-    # 2. Усиливаем пунктуацию
     result = result.replace('.', '!').replace('?', '?!')
     
-    # 3. Делаем текст энергичнее
+    # Делаем первое предложение громким
     sentences = re.split(r'[.!?]', result)
     sentences = [s.strip() for s in sentences if s.strip()]
     
     if sentences:
-        # Делаем первое предложение громким
         sentences[0] = sentences[0].upper()
-        
-        # Добавляем восклицания в конце
         result = '! '.join(sentences) + '!'
     
-    # 4. Добавляем эмоциональное окончание
-    endings = ["Это просто ВАУ! 💥", "Эмоции зашкаливают! 🚀", "Восхитительно! 🌟"]
+    # Добавляем эмоциональное окончание
+    endings = ["Это просто ВАУ!", "Эмоции зашкаливают!", "Восхитительно!"]
     result += "\n\n" + random.choice(endings)
     
     return result
@@ -98,7 +90,6 @@ def apply_ice(text):
     if not text:
         return text
     
-    # 1. Убираем эмоциональные слова
     emotional_words = ["очень", "крайне", "невероятно", "потрясающе", "восхитительно",
                       "ужасно", "страшно", "прекрасно", "великолепно", "изумительно"]
     
@@ -108,27 +99,21 @@ def apply_ice(text):
     for word in words:
         clean_word = word.lower()
         if clean_word not in emotional_words:
-            # Убираем восклицательные знаки из слов
             clean_word = clean_word.replace('!', '').replace('?', '')
             clean_words.append(clean_word)
     
-    # 2. Создаем фактологический текст
     result = " ".join(clean_words)
-    
-    # 3. Убираем эмоциональную пунктуацию
     result = result.replace('!', '.').replace('?', '.').replace('!!', '.').replace('?!', '.')
     
-    # 4. Делаем предложения короткими и фактологическими
+    # Делаем предложения короткими
     sentences = re.split(r'[.!?]', result)
     sentences = [s.strip() for s in sentences if s.strip()]
     
     fact_sentences = []
     for sentence in sentences:
         if sentence:
-            # Упрощаем предложение
             words_in_sentence = sentence.split()
             if len(words_in_sentence) > 10:
-                # Разбиваем длинные предложения
                 mid = len(words_in_sentence) // 2
                 fact_sentences.append(" ".join(words_in_sentence[:mid]) + ".")
                 fact_sentences.append(" ".join(words_in_sentence[mid:]) + ".")
@@ -136,8 +121,6 @@ def apply_ice(text):
                 fact_sentences.append(sentence + ".")
     
     result = " ".join(fact_sentences)
-    
-    # 5. Делаем текст нейтральным
     result = result.capitalize()
     
     return result
@@ -149,40 +132,20 @@ def apply_mechanicus(text):
     
     words = text.split()
     
-    # Создаем технический отчет
-    result = "📋 ТЕХНИЧЕСКИЙ АНАЛИЗ ТЕКСТА\n"
-    result += "=" * 40 + "\n\n"
-    
-    # 1. Статистика
-    result += "СТАТИСТИЧЕСКИЕ ДАННЫЕ:\n"
-    result += f"• Количество слов: {len(words)}\n"
-    result += f"• Количество символов: {len(text)}\n"
+    result = "📋 ТЕХНИЧЕСКИЙ АНАЛИЗ\n"
+    result += "=" * 30 + "\n\n"
+    result += "СТАТИСТИКА:\n"
+    result += f"• Слов: {len(words)}\n"
+    result += f"• Символов: {len(text)}\n"
     result += f"• Уникальных слов: {len(set(words))}\n\n"
     
-    # 2. Ключевые слова
-    result += "КЛЮЧЕВЫЕ ЭЛЕМЕНТЫ:\n"
-    
-    # Берем первые 5 слов как ключевые
+    result += "КЛЮЧЕВЫЕ СЛОВА:\n"
     key_words = words[:min(5, len(words))]
     for i, word in enumerate(key_words, 1):
         result += f"{i}. {word.upper()}\n"
     
-    result += "\n"
-    
-    # 3. Рекомендации по оптимизации
-    result += "РЕКОМЕНДАЦИИ:\n"
-    recommendations = [
-        "Оптимизировать структуру предложений",
-        "Увеличить информативность",
-        "Добавить технические детали",
-        "Структурировать по пунктам"
-    ]
-    
-    for i, rec in enumerate(recommendations[:min(3, len(words)//2)], 1):
-        result += f"• {rec}\n"
-    
-    result += "\n" + "=" * 40
-    result += "\n✅ Анализ завершен. Текст структурирован."
+    result += "\n" + "=" * 30
+    result += "\nАнализ завершен."
     
     return result
 
@@ -191,33 +154,26 @@ def apply_harmonicus(text):
     if not text:
         return text
     
-    # 1. Разбиваем на предложения
     sentences = re.split(r'[.!?]', text)
     sentences = [s.strip() for s in sentences if s.strip()]
     
     if not sentences:
         return text
     
-    # 2. Балансируем длину предложений
     balanced_sentences = []
-    
     for sentence in sentences:
         words = sentence.split()
         
-        if len(words) > 15:  # Слишком длинное предложение
-            # Разбиваем на две части
+        if len(words) > 15:
             mid = len(words) // 2
             balanced_sentences.append(" ".join(words[:mid]))
             balanced_sentences.append(" ".join(words[mid:]))
-        elif len(words) < 3:  # Слишком короткое предложение
-            # Объединяем со следующим или добавляем детали
+        elif len(words) < 3:
             balanced_sentences.append(sentence + " — важный момент.")
         else:
             balanced_sentences.append(sentence)
     
-    # 3. Создаем плавный переход между предложениями
-    connectors = ["При этом", "Кроме того", "Таким образом", "Следовательно", 
-                 "В результате", "Например", "Важно отметить"]
+    connectors = ["При этом", "Кроме того", "Таким образом", "Следовательно"]
     
     result = ""
     for i, sentence in enumerate(balanced_sentences):
@@ -230,13 +186,6 @@ def apply_harmonicus(text):
     
     result += "."
     
-    # 4. Оптимизируем читаемость
-    if len(result.split()) > 50:
-        # Добавляем абзацы для длинного текста
-        words = result.split()
-        paragraph_size = len(words) // 2
-        result = " ".join(words[:paragraph_size]) + "\n\n" + " ".join(words[paragraph_size:])
-    
     return result
 
 def apply_architect(text):
@@ -246,85 +195,73 @@ def apply_architect(text):
     
     words = text.split()
     
-    # Создаем структурированный документ
-    result = "📄 ДОКУМЕНТ\n"
-    result += "━" * 40 + "\n\n"
+    result = "📄 СТРУКТУРИРОВАННЫЙ ДОКУМЕНТ\n"
+    result += "━" * 35 + "\n\n"
     
-    # 1. Заголовок
     if len(words) > 3:
         title = " ".join(words[:3]).upper()
         result += f"ЗАГОЛОВОК: {title}\n\n"
     
-    # 2. Резюме
-    result += "📌 РЕЗЮМЕ:\n"
+    result += "📌 ОСНОВНОЕ:\n"
     if len(words) > 10:
         summary = " ".join(words[:10]) + "..."
     else:
         summary = text
     result += f"{summary}\n\n"
     
-    # 3. Основные разделы
     result += "🏗️ СТРУКТУРА:\n"
     
-    sections = 3
-    if len(words) > 20:
-        sections = 4
-    elif len(words) > 40:
-        sections = 5
-    
-    section_size = len(words) // sections
-    
+    sections = min(3, len(words) // 5)
     for i in range(sections):
-        start_idx = i * section_size
-        end_idx = start_idx + min(section_size, 7)  # Берем по 7 слов для описания раздела
-        
-        if start_idx < len(words):
-            section_words = words[start_idx:end_idx]
-            if section_words:
-                result += f"\n{i+1}. РАЗДЕЛ {i+1}:\n"
-                result += f"   • Содержание: {' '.join(section_words)}\n"
-                result += f"   • Статус: Структурировано ✓\n"
+        start = i * 5
+        end = min(start + 5, len(words))
+        if start < len(words):
+            result += f"\n{i+1}. Раздел {i+1}:\n"
+            result += f"   • {' '.join(words[start:end])}\n"
     
-    result += "\n" + "━" * 40
-    result += "\n✨ Документ структурирован и готов к использованию."
+    result += "\n" + "━" * 35
+    result += "\nДокумент структурирован."
     
     return result
 
-def transform_text(text: str, style: str) -> str:
+def transform_text(text: str, style: str):
     """Главная функция преобразования текста"""
     if not text.strip():
-        return "⚠️ Вы отправили пустое сообщение."
+        return "⚠️ Пустое сообщение.", ""
     
-    # Выбор функции преобразования
     if style == "phoenix":
         transformed = apply_phoenix(text)
-        return f"<b>🔥 ФЕНИКС (Эмоциональный стиль):</b>\n\n{transformed}"
+        formatted = f"<b>🔥 ФЕНИКС (Эмоциональный):</b>\n\n{transformed}"
+        return formatted, transformed
     
     elif style == "ice":
         transformed = apply_ice(text)
-        return f"<b>🧊 ЛЁД (Фактологический стиль):</b>\n\n{transformed}"
+        formatted = f"<b>🧊 ЛЁД (Фактологический):</b>\n\n{transformed}"
+        return formatted, transformed
     
     elif style == "mechanicus":
         transformed = apply_mechanicus(text)
-        return f"<b>📊 МЕХАНИКУС (Технический стиль):</b>\n\n{transformed}"
+        formatted = f"<b>📊 МЕХАНИКУС (Технический):</b>\n\n{transformed}"
+        return formatted, transformed
     
     elif style == "harmonicus":
         transformed = apply_harmonicus(text)
-        return f"<b>📝 ГАРМОНИКУС (Сбалансированный стиль):</b>\n\n{transformed}"
+        formatted = f"<b>📝 ГАРМОНИКУС (Сбалансированный):</b>\n\n{transformed}"
+        return formatted, transformed
     
     elif style == "architect":
         transformed = apply_architect(text)
-        return f"<b>✨ АРХИТЕКТОР (Структурированный стиль):</b>\n\n{transformed}"
+        formatted = f"<b>✨ АРХИТЕКТОР (Структурированный):</b>\n\n{transformed}"
+        return formatted, transformed
     
     else:
-        return f"<b>Оригинальный текст:</b>\n\n{text}"
+        return f"<b>Оригинал:</b>\n\n{text}", text
 
 # ==================== ТЕЛЕГРАМ БОТ ====================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /start"""
     user = update.effective_user
     
-    # Создаем клавиатуру с кнопками стилей
     keyboard = [
         [InlineKeyboardButton("🔥 Феникс", callback_data="style_phoenix")],
         [InlineKeyboardButton("🧊 Лёд", callback_data="style_ice")],
@@ -339,13 +276,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_html(
         f"⚗️ <b>TextAlchemic Bot</b>\n\n"
         f"Привет, {user.mention_html()}! Я превращаю текст в нужный стиль.\n\n"
-        f"<b>Выберите стиль преобразования:</b>\n"
-        f"• 🔥 ФЕНИКС — добавляет эмоции и энергию\n"
-        f"• 🧊 ЛЁД — оставляет только факты\n"
-        f"• 📊 МЕХАНИКУС — технический анализ\n"
-        f"• 📝 ГАРМОНИКУС — балансирует текст\n"
-        f"• ✨ АРХИТЕКТОР — создаёт структуру\n\n"
-        f"<i>Нажмите на кнопку ниже, чтобы выбрать стиль, затем отправьте текст.</i>",
+        f"<b>Как использовать:</b>\n"
+        f"1. Выберите стиль кнопкой ниже\n"
+        f"2. Отправьте текст\n"
+        f"3. Получите результат в двух сообщениях:\n"
+        f"   • Первое — информация о стиле\n"
+        f"   • Второе — чистый текст для копирования\n\n"
+        f"<i>Алхимия слов начинается здесь!</i>",
         reply_markup=reply_markup
     )
 
@@ -357,18 +294,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     
     if query.data.startswith("style_"):
-        # Пользователь выбрал стиль
         style_key = query.data.replace("style_", "")
         
         if style_key in STYLES:
-            # Сохраняем выбор стиля
             if user_id not in user_data_store:
                 user_data_store[user_id] = {}
             user_data_store[user_id]['style'] = style_key
             
             style_info = STYLES[style_key]
             
-            # Показываем кнопку "Отправить текст"
             keyboard = [
                 [InlineKeyboardButton("📝 Отправить текст", callback_data="send_text")],
                 [InlineKeyboardButton("🔄 Выбрать другой стиль", callback_data="change_style")]
@@ -378,21 +312,19 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(
                 f"{style_info['emoji']} <b>Выбран стиль: {style_info['name']}</b>\n\n"
                 f"{style_info['description']}\n\n"
-                f"<i>Теперь отправьте текст для преобразования или нажмите \"Отправить текст\".</i>",
+                f"<i>Нажмите \"Отправить текст\" и напишите текст для преобразования.</i>",
                 parse_mode='HTML',
                 reply_markup=reply_markup
             )
     
     elif query.data == "send_text":
-        # Просим отправить текст
         await query.edit_message_text(
             "📝 <b>Отправьте текст для преобразования:</b>\n\n"
-            "<i>Просто напишите сообщение с текстом, и я преобразую его в выбранном стиле.</i>",
+            "<i>Просто напишите сообщение с текстом.</i>",
             parse_mode='HTML'
         )
     
     elif query.data == "change_style":
-        # Возвращаем к выбору стиля
         keyboard = [
             [InlineKeyboardButton("🔥 Феникс", callback_data="style_phoenix")],
             [InlineKeyboardButton("🧊 Лёд", callback_data="style_ice")],
@@ -404,18 +336,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await query.edit_message_text(
             "🎭 <b>Выберите стиль преобразования:</b>\n\n"
-            "• 🔥 ФЕНИКС — добавляет эмоции и энергию\n"
-            "• 🧊 ЛЁД — оставляет только факты\n"
-            "• 📊 МЕХАНИКУС — технический анализ\n"
-            "• 📝 ГАРМОНИКУС — балансирует текст\n"
-            "• ✨ АРХИТЕКТОР — создаёт структуру\n\n"
             "<i>Нажмите на кнопку, чтобы выбрать стиль.</i>",
             parse_mode='HTML',
             reply_markup=reply_markup
         )
     
     elif query.data == "help":
-        # Показываем справку
         keyboard = [
             [InlineKeyboardButton("🎭 Выбрать стиль", callback_data="change_style")],
             [InlineKeyboardButton("🚀 Начать работу", callback_data="send_text")]
@@ -427,17 +353,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "1. <b>Как использовать:</b>\n"
             "   • Выберите стиль преобразования\n"
             "   • Отправьте текст\n"
-            "   • Получите преобразованный текст\n\n"
+            "   • Получите результат в двух сообщениях\n\n"
             "2. <b>Стили преобразования:</b>\n"
             "   • 🔥 ФЕНИКС — для соцсетей, рекламы\n"
             "   • 🧊 ЛЁД — для отчётов, документов\n"
-            "   • 📊 МЕХАНИКУС — для инструкций, техдокументации\n"
+            "   • 📊 МЕХАНИКУС — для инструкций\n"
             "   • 📝 ГАРМОНИКУС — для блогов, статей\n"
-            "   • ✨ АРХИТЕКТОР — для презентаций, структурированных документов\n\n"
+            "   • ✨ АРХИТЕКТОР — для презентаций\n\n"
             "3. <b>Копирование текста:</b>\n"
-            "   • Просто выделите преобразованный текст и скопируйте\n"
-            "   • В Telegram можно долго нажать на текст и выбрать \"Копировать\"\n\n"
-            "<i>TextAlchemic: превращаем свинец ваших текстов в золото коммуникации!</i>",
+            "   • Второе сообщение содержит чистый текст\n"
+            "   • Просто выделите его и скопируйте\n\n"
+            "<i>TextAlchemic: превращаем текст в золото коммуникации!</i>",
             parse_mode='HTML',
             reply_markup=reply_markup
         )
@@ -447,29 +373,38 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_text = update.message.text
     
-    # Проверяем, выбрал ли пользователь стиль
     if user_id in user_data_store and 'style' in user_data_store[user_id]:
         style_key = user_data_store[user_id]['style']
         
         # Преобразуем текст
-        result = transform_text(user_text, style_key)
+        formatted_result, clean_result = transform_text(user_text, style_key)
         
-        # Добавляем кнопки для новых действий
+        # Сохраняем чистый текст
+        user_data_store[user_id]['last_clean_text'] = clean_result
+        user_data_store[user_id]['original_text'] = user_text
+        
+        # Отправляем информационное сообщение
         keyboard = [
             [InlineKeyboardButton("🔄 Преобразовать ещё", callback_data="send_text")],
             [InlineKeyboardButton("🎭 Сменить стиль", callback_data="change_style")],
-            [InlineKeyboardButton("ℹ️ Помощь", callback_data="help")]
+            [InlineKeyboardButton("📋 Отправить чистый текст", callback_data="send_clean_text")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        # Отправляем преобразованный текст
         await update.message.reply_text(
-            result + "\n\n📋 <i>Чтобы скопировать: выделите текст или нажмите и удерживайте</i>",
+            formatted_result,
             parse_mode='HTML',
             reply_markup=reply_markup
         )
+        
+        # Отправляем чистый текст для копирования
+        await update.message.reply_text(
+            f"📋 <b>Чистый текст для копирования:</b>\n\n"
+            f"{clean_result}\n\n"
+            f"<i>Просто выделите этот текст и скопируйте.</i>",
+            parse_mode='HTML'
+        )
     else:
-        # Пользователь не выбрал стиль
         keyboard = [
             [InlineKeyboardButton("🎭 Выбрать стиль", callback_data="change_style")],
             [InlineKeyboardButton("ℹ️ Помощь", callback_data="help")]
@@ -478,9 +413,31 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await update.message.reply_text(
             "⚠️ <b>Сначала выберите стиль преобразования!</b>\n\n"
-            "Нажмите кнопку ниже, чтобы выбрать стиль, затем отправьте текст.",
+            "Нажмите кнопку ниже, чтобы выбрать стиль.",
             parse_mode='HTML',
             reply_markup=reply_markup
+        )
+
+async def send_clean_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Отправляет сохраненный чистый текст"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    
+    if user_id in user_data_store and 'last_clean_text' in user_data_store[user_id]:
+        clean_text = user_data_store[user_id]['last_clean_text']
+        
+        await query.message.reply_text(
+            f"📋 <b>Чистый текст для копирования:</b>\n\n"
+            f"{clean_text}",
+            parse_mode='HTML'
+        )
+    else:
+        await query.message.reply_text(
+            "⚠️ <b>Нет сохраненного текста</b>\n\n"
+            "Отправьте текст для преобразования сначала.",
+            parse_mode='HTML'
         )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -500,16 +457,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "   • Нажмите /start\n"
         "   • Выберите стиль из 5 вариантов\n"
         "   • Отправьте текст\n"
-        "   • Получите преобразованный текст\n\n"
-        "3. <b>Стили преобразования:</b>\n"
-        "   • 🔥 ФЕНИКС — эмоциональный, энергичный\n"
-        "   • 🧊 ЛЁД — фактологический, холодный\n"
-        "   • 📊 МЕХАНИКУС — технический, структурированный\n"
-        "   • 📝 ГАРМОНИКУС — сбалансированный, читаемый\n"
-        "   • ✨ АРХИТЕКТОР — иерархический, организованный\n\n"
-        "4. <b>Копирование текста:</b>\n"
-        "   • Просто выделите текст и скопируйте\n"
-        "   • Или нажмите и удерживайте текст в Telegram\n\n"
+        "   • Получите результат в двух сообщениях\n\n"
+        "3. <b>Копирование текста:</b>\n"
+        "   • Второе сообщение содержит чистый текст\n"
+        "   • Просто выделите и скопируйте\n\n"
         "<i>Алхимия слов начинается здесь!</i>",
         parse_mode='HTML',
         reply_markup=reply_markup
@@ -523,21 +474,12 @@ async def demo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "⚗️ <b>ДЕМОНСТРАЦИЯ TEXTALCHEMIC:</b>\n\n"
         f"<b>Исходный текст:</b>\n«{demo_text}»\n\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "<b>🔥 ФЕНИКС:</b>\n"
-        "НАШ ПРОДУКТ НЕВЕРОЯТНО ПОВЫШАЕТ ЭФФЕКТИВНОСТЬ РАБОТЫ КОМАНДЫ! "
-        "Это ПОТРЯСАЮЩЕ! 💥\n\n"
-        "<b>🧊 ЛЁД:</b>\n"
-        "Продукт повышает эффективность работы команды. "
-        "Улучшение подтверждено метриками.\n\n"
-        "<b>📊 МЕХАНИКУС:</b>\n"
-        "📋 ТЕХНИЧЕСКИЙ АНАЛИЗ\n"
-        "• Ключевой параметр: эффективность работы\n"
-        "• Объект воздействия: команда\n"
-        "• Результат: повышение показателей\n\n"
-        "<b>✨ АРХИТЕКТОР:</b>\n"
-        "📄 ДОКУМЕНТ\n"
-        "ЗАГОЛОВОК: ПРОДУКТ ПОВЫШЕНИЯ ЭФФЕКТИВНОСТИ\n\n"
-        "📌 РЕЗЮМЕ: Продукт повышает эффективность работы команды...\n\n"
+        "<b>Как работает:</b>\n"
+        "1. Вы выбираете стиль\n"
+        "2. Отправляете текст\n"
+        "3. Получаете два сообщения:\n"
+        "   • Информация о стиле\n"
+        "   • Чистый текст для копирования\n\n"
         "<i>Выберите стиль и попробуйте сами!</i>"
     )
     
@@ -556,15 +498,6 @@ async def demo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик ошибок"""
     logger.error(f"Ошибка: {context.error}")
-    
-    try:
-        await update.message.reply_text(
-            "⚠️ <b>Произошла ошибка</b>\n\n"
-            "Попробуйте ещё раз или выберите /start для перезапуска.",
-            parse_mode='HTML'
-        )
-    except:
-        pass
 
 def main():
     """Основная функция запуска бота"""
@@ -575,24 +508,19 @@ def main():
     print("⚗️ TextAlchemic Bot запускается...")
     print(f"🔑 Токен: {TOKEN[:10]}...")
     
-    # Создаем приложение
     application = ApplicationBuilder().token(TOKEN).build()
     
-    # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("demo", demo_command))
     
-    # Регистрируем обработчик кнопок
     application.add_handler(CallbackQueryHandler(button_handler))
+    application.add_handler(CallbackQueryHandler(send_clean_text_handler, pattern="send_clean_text"))
     
-    # Регистрируем обработчик для обычных сообщений
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     
-    # Обработчик ошибок
     application.add_error_handler(error_handler)
     
-    # Запускаем бота
     print("🤖 TextAlchemic запущен и готов к алхимии текстов!")
     print("ℹ️  Напишите боту: /start для начала работы")
     application.run_polling()
