@@ -13,7 +13,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 
 # ==================== НАСТРОЙКИ ====================
 # Берем токен из переменных окружения Bot Host
-TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN', '8500434618:AAEaMSjcIf2mJb8F2vfflO8ObG4MaTb4mQo')
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN', '8542210651:AAG7Ze8DlRJwHrOYKPOrTqdnvJzLgcm23KQ')
 
 # Настройки Яндекс GPT (если есть)
 YANDEX_API_KEY = os.getenv('YANDEX_API_KEY', '')  # Оставьте пустым
