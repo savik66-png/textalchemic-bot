@@ -1,6 +1,5 @@
 """
 Менеджер сессий пользователей
-Упрощённая версия - без контекстного якоря для пользователей
 """
 from datetime import datetime, timedelta
 from typing import Dict, Any
