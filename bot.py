@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """
-TextAlchemic Bot - ВЕРСИЯ ДЛЯ BOT HOST
-Оптимизирован для облачного хостинга
+TextAlchemic Bot - ВЕРСИЯ С ЯНДЕКС GPT
+Полноценная интеграция с Yandex GPT API
 """
-
 import os
 import random
 import logging
@@ -12,13 +11,10 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
 # ==================== НАСТРОЙКИ ====================
-# Берем токен из переменных окружения Bot Host
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN', '8542210651:AAG7Ze8DlRJwHrOYKPOrTqdnvJzLgcm23KQ')
-
-# Настройки Яндекс GPT (если есть)
-YANDEX_API_KEY = os.getenv('YANDEX_API_KEY', '')  # Оставьте пустым
-YANDEX_FOLDER_ID = os.getenv('YANDEX_FOLDER_ID', 'b1gg2v3f25hvg3gbqbvb')
-YANDEX_GPT_AVAILABLE = False
+YANDEX_API_KEY = os.getenv('YANDEX_API_KEY', '')  # ← СЮДА БУДЕТ КЛЮЧ ИЗ BOTHOST
+YANDEX_FOLDER_ID = os.getenv('YANDEX_FOLDER_ID', 'b1gf28m0hpqbo55slm6d')  # ← ИСПРАВЛЕНО!
+YANDEX_GPT_MODEL = os.getenv('YANDEX_GPT_MODEL', 'yandexgpt-lite')  # lite = дешевле
 
 # ==================== НАСТРОЙКА ЛОГИРОВАНИЯ ====================
 logging.basicConfig(
@@ -37,7 +33,7 @@ STYLES = {
     "yagpt": "Яндекс GPT 🤖"
 }
 
-# ==================== АЛГОРИТМИЧЕСКИЕ СТИЛИ ====================
+# ==================== АЛГОРИТМИЧЕСКИЕ СТИЛИ (БЕЗ ИИ) ====================
 def transform_ice(text: str) -> str:
     """Стиль ЛЁД - всегда 5 фактов"""
     facts = [
@@ -50,37 +46,28 @@ def transform_ice(text: str) -> str:
         "Упрощение рабочих процедур",
         "Стандартизация подходов"
     ]
-    
     selected = random.sample(facts, 5)
-    result = ["❄️ *КЛЮЧЕВЫЕ ФАКТЫ:*\n"]
-    for i, fact in enumerate(selected, 1):
-        result.append(f"{i}. {fact}.")
-    
-    result.append(f"\n📌 *Вывод:* Текст содержит {len(text.split())} слов.")
-    return "\n".join(result)
+    return f"""❄️ *КЛЮЧЕВЫЕ ФАКТЫ:*
+
+{chr(10).join([f"{i}. {fact}." for i, fact in enumerate(selected, 1)])}
+
+📌 *Вывод:* Текст содержит {len(text.split())} слов."""
 
 def transform_phoenix(text: str) -> str:
     """Стиль ФЕНИКС - эмоционально с эмодзи"""
-    words = text.split()
-    key_word = words[0] if words else "Проект"
-    
     emotions = ["🔥", "✨", "🚀", "🎯", "💥", "🌟", "🏆", "👏"]
     tags = ["#Успех", "#Инновации", "#Развитие", "#Команда", "#Будущее"]
-    
-    result = [
-        f"{random.choice(emotions)} *ЭМОЦИОНАЛЬНЫЙ АНАЛИЗ* {random.choice(emotions)}",
-        "",
-        f"ВАЖНО! {key_word.upper()} - ЭТО ПРОРЫВ!",
-        "",
-        f"✨ {text}",
-        "",
-        f"🎭 Настроение: Позитивное {random.choice(emotions)}",
-        f"📈 Потенциал: Высокий {random.choice(emotions)}",
-        f"💪 Рекомендация: Внедрять немедленно!",
-        "",
-        " ".join(random.sample(tags, 3))
-    ]
-    return "\n".join(result)
+    return f"""{random.choice(emotions)} *ЭМОЦИОНАЛЬНЫЙ АНАЛИЗ* {random.choice(emotions)}
+
+🔥 ВАЖНО! КЛЮЧЕВОЙ МОМЕНТ! 🔥
+
+✨ {text}
+
+🎭 Настроение: Позитивное {random.choice(emotions)}
+📈 Потенциал: Высокий {random.choice(emotions)}
+💪 Рекомендация: Внедрять немедленно!
+
+{' '.join(random.sample(tags, 3))}"""
 
 def transform_mechanicus(text: str) -> str:
     """Стиль МЕХАНИК - технически"""
@@ -91,7 +78,7 @@ def transform_mechanicus(text: str) -> str:
 
 **2. Технические параметры:**
 • Надежность: Высокая
-• Масштабируемость: Да
+• Масштабируемость: Да  
 • Сложность внедрения: Средняя
 
 **3. Рекомендации:**
@@ -106,7 +93,6 @@ def transform_harmonicus(text: str) -> str:
 {text}
 
 ---
-
 📖 *Комментарий:*
 Представленный текст демонстрирует баланс между различными аспектами. Рекомендуется учитывать как технические, так и человеческие факторы для достижения наилучшего результата.
 
@@ -121,7 +107,7 @@ def transform_architect(text: str) -> str:
 
 **Раздел 2. Компоненты**
 1. Базовый модуль
-2. Вспомогательные элементы
+2. Вспомогательные элементы  
 3. Интеграционные решения
 
 **Раздел 3. Внедрение**
@@ -131,45 +117,12 @@ def transform_architect(text: str) -> str:
 
 *Архитектурный подход обеспечивает стабильность*"""
 
-# ==================== YANDEX GPT ФУНКЦИИ ====================
-def check_yandex_gpt():
-    """Проверка доступности Яндекс GPT (неблокирующая)"""
-    global YANDEX_GPT_AVAILABLE
-    
-    if not YANDEX_API_KEY:
-        YANDEX_GPT_AVAILABLE = False
+# ==================== ЯНДЕКС GPT ИНТЕГРАЦИЯ ====================
+def check_yandex_gpt() -> bool:
+    """Проверка доступности Яндекс GPT"""
+    if not YANDEX_API_KEY or YANDEX_API_KEY == '':
+        logger.warning("Yandex GPT: API ключ не установлен")
         return False
-    
-    try:
-        # Быстрая проверка (5 секунд)
-        test_response = requests.post(
-            "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
-            headers={
-                "Authorization": f"Api-Key {YANDEX_API_KEY}",
-                "Content-Type": "application/json",
-                "x-folder-id": YANDEX_FOLDER_ID
-            },
-            json={
-                "modelUri": f"gpt://{YANDEX_FOLDER_ID}/yandexgpt/latest",
-                "completionOptions": {"temperature": 0.1, "maxTokens": 10},
-                "messages": [{"role": "user", "text": "hi"}]
-            },
-            timeout=5
-        )
-        
-        YANDEX_GPT_AVAILABLE = (test_response.status_code == 200)
-        logger.info(f"Yandex GPT check: {YANDEX_GPT_AVAILABLE}")
-        return YANDEX_GPT_AVAILABLE
-        
-    except Exception as e:
-        logger.warning(f"Yandex GPT check failed: {e}")
-        YANDEX_GPT_AVAILABLE = False
-        return False
-
-def ask_yandex_gpt_safe(prompt: str) -> str:
-    """Безопасный запрос к Яндекс GPT с обработкой ошибок"""
-    if not YANDEX_API_KEY or not YANDEX_GPT_AVAILABLE:
-        return "❌ Яндекс GPT недоступен. Используйте другой стиль."
     
     try:
         response = requests.post(
@@ -180,24 +133,81 @@ def ask_yandex_gpt_safe(prompt: str) -> str:
                 "x-folder-id": YANDEX_FOLDER_ID
             },
             json={
-                "modelUri": f"gpt://{YANDEX_FOLDER_ID}/yandexgpt/latest",
-                "completionOptions": {"temperature": 0.7, "maxTokens": 500},
-                "messages": [{"role": "user", "text": prompt}]
+                "modelUri": f"gpt://{YANDEX_FOLDER_ID}/{YANDEX_GPT_MODEL}",
+                "completionOptions": {"temperature": 0.1, "maxTokens": 10},
+                "messages": [{"role": "user", "text": "Привет"}]
             },
-            timeout=15  # Оптимальный таймаут для Bot Host
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            logger.info("✅ Yandex GPT доступен")
+            return True
+        else:
+            logger.error(f"❌ Yandex GPT ошибка: {response.status_code}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"❌ Yandex GPT недоступен: {e}")
+        return False
+
+def ask_yandex_gpt(text: str, style_name: str = "нейтральный") -> str:
+    """Запрос к Яндекс GPT с обработкой ошибок"""
+    if not YANDEX_API_KEY or YANDEX_API_KEY == '':
+        return "❌ Яндекс GPT недоступен. Установите API ключ в настройках бота."
+    
+    # Системные промпты для разных стилей
+    system_prompts = {
+        "лёд": "Ты — аналитик. Отвечай фактами списком, без эмоций. Максимум 5 пунктов.",
+        "феникс": "Ты — мотиватор. Используй эмодзи, восклицательные знаки, энергичный тон.",
+        "механик": "Ты — технический специалист. Используй термины, структуру, конкретику.",
+        "гармония": "Ты — философ. Мягкий тон, баланс, глубина, метафоры.",
+        "архитектор": "Ты — планировщик. Чёткая структура, разделы, этапы, логика."
+    }
+    
+    system_prompt = system_prompts.get(style_name.lower(), "Ты — эксперт по текстам. Улучши этот текст.")
+    
+    try:
+        response = requests.post(
+            "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
+            headers={
+                "Authorization": f"Api-Key {YANDEX_API_KEY}",
+                "Content-Type": "application/json",
+                "x-folder-id": YANDEX_FOLDER_ID
+            },
+            json={
+                "modelUri": f"gpt://{YANDEX_FOLDER_ID}/{YANDEX_GPT_MODEL}",
+                "completionOptions": {"temperature": 0.7, "maxTokens": 1000},
+                "messages": [
+                    {"role": "system", "text": system_prompt},
+                    {"role": "user", "text": text}
+                ]
+            },
+            timeout=30
         )
         
         if response.status_code == 200:
             result = response.json()
-            text = result.get('result', {}).get('alternatives', [{}])[0].get('message', {}).get('text', '')
-            return text if text else "🤔 Яндекс GPT ответил пустым сообщением"
+            answer = result.get('result', {}).get('alternatives', [{}])[0].get('message', {}).get('text', '')
+            
+            if not answer or answer.strip() == '':
+                return "🤔 Яндекс GPT вернул пустой ответ. Попробуйте другой текст."
+            
+            return answer
+            
+        elif response.status_code == 401:
+            return "❌ Ошибка авторизации. Проверьте правильность API ключа."
+        elif response.status_code == 403:
+            return f"❌ Доступ запрещён. Проверьте правильность FOLDER_ID: {YANDEX_FOLDER_ID}"
         else:
             return f"❌ Ошибка Яндекс GPT: {response.status_code}"
             
     except requests.exceptions.Timeout:
-        return "⏱️ Яндекс GPT не ответил за 15 секунд"
+        return "⏱️ Яндекс GPT не ответил за 30 секунд. Попробуйте позже."
+    except requests.exceptions.ConnectionError:
+        return "🔌 Ошибка подключения к Яндекс GPT. Проверьте интернет."
     except Exception as e:
-        return f"❌ Ошибка подключения: {str(e)[:100]}"
+        return f"❌ Ошибка: {str(e)[:150]}"
 
 # ==================== TELEGRAM БОТ ====================
 user_states = {}
@@ -207,26 +217,27 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_states[user_id] = {"step": "choose_style"}
     
-    # Статус Яндекс GPT
-    yagpt_status = "✅ Доступен" if YANDEX_GPT_AVAILABLE else "❌ Недоступен"
+    # Проверяем доступность Яндекс GPT
+    yagpt_available = bool(YANDEX_API_KEY and YANDEX_API_KEY != '')
     
-    # Клавиатура
     keyboard = []
     for style_key, style_name in STYLES.items():
-        if style_key == "yagpt" and not YANDEX_GPT_AVAILABLE:
+        if style_key == "yagpt" and not yagpt_available:
             continue
         keyboard.append([InlineKeyboardButton(style_name, callback_data=f"style_{style_key}")])
     
     keyboard.append([
-        InlineKeyboardButton("🔍 Проверить Яндекс GPT", callback_data="check_yagpt"),
+        InlineKeyboardButton("🔍 Статус Яндекс GPT", callback_data="check_yagpt"),
         InlineKeyboardButton("📋 Инструкция", callback_data="help")
     ])
     
+    status_msg = "✅ Доступен" if yagpt_available else "❌ Не настроен (нужен API ключ)"
+    
     await update.message.reply_text(
-        f"🤖 *TextAlchemic Bot*\n"
-        f"📍 Запущен на Bot Host\n"
-        f"🤖 Яндекс GPT: {yagpt_status}\n"
-        f"⚙️ Алгоритмы: 5 стилей\n\n"
+        f"🤖 *TextAlchemic Bot v2.0*\n"
+        f"📍 Хостинг: Bot Host\n"
+        f"🤖 Яндекс GPT: {status_msg}\n"
+        f"⚙️ Алгоритмы: 5 стилей\n"
         f"*Выберите стиль преобразования:*",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode='Markdown'
@@ -236,7 +247,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработка нажатий кнопок"""
     query = update.callback_query
     await query.answer()
-    
     user_id = query.from_user.id
     data = query.data
     
@@ -253,56 +263,68 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "yagpt": "Любой текст для обработки нейросетью"
         }
         
+        style_name = STYLES[style]
         await query.edit_message_text(
-            f"✅ Выбрано: *{STYLES[style]}*\n\n"
-            f"Отправьте текст для преобразования.\n\n"
+            f"✅ Выбрано: *{style_name}*\n"
+            f"Отправьте текст для преобразования.\n"
             f"💡 Пример: `{examples.get(style, 'Ваш текст здесь')}`",
             parse_mode='Markdown'
         )
     
     elif data == "check_yagpt":
-        if YANDEX_API_KEY:
-            await query.edit_message_text("🔍 Проверяю Яндекс GPT...")
-            is_available = check_yandex_gpt()
-            
-            if is_available:
-                await query.edit_message_text(
-                    "✅ Яндекс GPT доступен!\n\n"
-                    "Теперь вы можете использовать стиль 'Яндекс GPT 🤖'",
-                    parse_mode='Markdown'
-                )
-            else:
-                await query.edit_message_text(
-                    "❌ Яндекс GPT недоступен.\n\n"
-                    "Используйте алгоритмические стили — они работают всегда!",
-                    parse_mode='Markdown'
-                )
+        await query.edit_message_text("🔍 Проверяю доступность Яндекс GPT...")
+        
+        if not YANDEX_API_KEY or YANDEX_API_KEY == '':
+            await query.edit_message_text(
+                "⚠️ *Яндекс GPT не настроен*\n"
+                "Для активации добавьте переменную `YANDEX_API_KEY` в настройках бота на BotHost.\n"
+                "\n"
+                "Инструкция:\n"
+                "1. Зайдите в настройки бота на BotHost\n"
+                "2. Найдите раздел 'Переменные окружения'\n"
+                "3. Добавьте: `YANDEX_API_KEY` = ваш_ключ_от_яндекса",
+                parse_mode='Markdown'
+            )
+            return
+        
+        is_available = check_yandex_gpt()
+        if is_available:
+            await query.edit_message_text(
+                "✅ *Яндекс GPT доступен!*\n"
+                f"📁 Каталог: `{YANDEX_FOLDER_ID}`\n"
+                f"🤖 Модель: `{YANDEX_GPT_MODEL}`\n"
+                "Теперь вы можете использовать стиль 'Яндекс GPT 🤖'",
+                parse_mode='Markdown'
+            )
         else:
             await query.edit_message_text(
-                "⚠️ API-ключ Яндекс не настроен.\n\n"
-                "Для использования Яндекс GPT добавьте переменную YANDEX_API_KEY в настройках Bot Host.",
+                "❌ *Яндекс GPT недоступен*\n"
+                "Возможные причины:\n"
+                "• Неправильный API ключ\n"
+                "• Неправильный FOLDER_ID\n"
+                "• Проблемы с интернетом",
                 parse_mode='Markdown'
             )
     
     elif data == "help":
         keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data="back")]]
-        
         await query.edit_message_text(
-            "📖 *ИНСТРУКЦИЯ:*\n\n"
+            "📖 *ИНСТРУКЦИЯ:*\n"
+            "\n"
             "*Алгоритмические стили (работают всегда):*\n"
             "• ❄️ Лёд — факты списком\n"
             "• 🔥 Феникс — эмоционально\n"
             "• ⚙️ Механик — технически\n"
             "• 🌿 Гармония — мягко\n"
-            "• 🏛️ Архитектор — структурированно\n\n"
+            "• 🏛️ Архитектор — структурированно\n"
+            "\n"
             "*Яндекс GPT (если доступен):*\n"
-            "• 🤖 Яндекс GPT — нейросеть\n\n"
+            "• 🤖 Яндекс GPT — нейросеть с адаптацией под стиль\n"
+            "\n"
             "*Использование:*\n"
-            "1. Выберите стиль\n"
-            "2. Отправьте текст\n"
-            "3. Получите результат\n"
-            "4. Выберите новое действие\n\n"
-            "*Bot Host:* Круглосуточная работа, автоматический перезапуск.",
+            "1. Выберите стиль через /start\n"
+            "2. Отправьте текст (минимум 5 символов)\n"
+            "3. Получите результат через 3-5 секунд",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown'
         )
@@ -315,7 +337,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             style = user_states[user_id]["style"]
             user_states[user_id]["step"] = "waiting_text"
             await query.edit_message_text(
-                f"🔄 Снова: *{STYLES[style]}*\n\nОтправьте текст:",
+                f"🔄 Снова: *{STYLES[style]}*\n"
+                f"Отправьте текст:",
                 parse_mode='Markdown'
             )
 
@@ -328,34 +351,34 @@ async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         return
     
     text = update.message.text.strip()
+    
     if len(text) < 5:
-        await update.message.reply_text("📝 Минимум 5 символов")
+        await update.message.reply_text("📝 Текст слишком короткий. Минимум 5 символов.")
         return
     
     style = user_states[user_id].get("style", "ice")
     
     # Сообщение об обработке
-    msg = await update.message.reply_text("⏳ Обрабатываю...")
+    processing_msg = await update.message.reply_text("⏳ Обрабатываю...")
     
     # Преобразуем текст
     if style == "yagpt":
-        result = ask_yandex_gpt_safe(text)
+        result = ask_yandex_gpt(text)
     else:
-        if style == "ice":
-            result = transform_ice(text)
-        elif style == "phoenix":
-            result = transform_phoenix(text)
-        elif style == "mechanicus":
-            result = transform_mechanicus(text)
-        elif style == "harmonicus":
-            result = transform_harmonicus(text)
-        elif style == "architect":
-            result = transform_architect(text)
-        else:
-            result = f"Стиль {style} не найден"
+        # Алгоритмические стили
+        style_map = {
+            "ice": transform_ice,
+            "phoenix": transform_phoenix,
+            "mechanicus": transform_mechanicus,
+            "harmonicus": transform_harmonicus,
+            "architect": transform_architect
+        }
+        
+        transform_func = style_map.get(style, transform_ice)
+        result = transform_func(text)
     
     # Удаляем сообщение об обработке
-    await msg.delete()
+    await processing_msg.delete()
     
     # Сохраняем результат
     user_states[user_id]["last_text"] = result
@@ -364,47 +387,26 @@ async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     keyboard = [
         [
             InlineKeyboardButton("🔄 Ещё текст", callback_data="new_text"),
-            InlineKeyboardButton("📋 Копировать", callback_data="copy")
-        ],
-        [
-            InlineKeyboardButton("🎨 Новый стиль", callback_data="back"),
-            InlineKeyboardButton("🔍 Проверить Яндекс GPT", callback_data="check_yagpt")
+            InlineKeyboardButton("🎨 Новый стиль", callback_data="back")
         ]
     ]
     
     # Отправляем результат
     await update.message.reply_text(
-        f"✨ *{STYLES[style]}:*\n\n{result}\n\n"
+        f"✨ *{STYLES[style]}:*\n"
+        f"{result}\n"
         f"━━━━━━━━━━━━━━━━\n"
         f"📊 Символов: {len(result)}\n"
-        f"🎭 Стиль: {STYLES[style]}\n"
-        f"📍 Хостинг: Bot Host",
+        f"📍 Bot Host",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode='Markdown'
     )
-
-async def copy_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Копирование текста"""
-    query = update.callback_query
-    await query.answer()
-    
-    user_id = query.from_user.id
-    if user_id in user_states and "last_text" in user_states[user_id]:
-        text = user_states[user_id]["last_text"]
-        await query.edit_message_text(
-            f"📋 *Текст для копирования:*\n\n"
-            f"`{text}`\n\n"
-            f"ℹ️ Нажмите и удерживайте текст, чтобы скопировать.",
-            parse_mode='Markdown'
-        )
-    else:
-        await query.answer("❌ Нет текста для копирования", show_alert=True)
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработка ошибок"""
     logger.error(f"Ошибка: {context.error}")
     try:
-        if update.effective_chat:
+        if update and update.effective_chat:
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
                 text="⚠️ Произошла ошибка. Пожалуйста, попробуйте снова."
@@ -415,25 +417,27 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==================== ЗАПУСК ====================
 def main():
     """Запуск бота на Bot Host"""
-    
-    # Проверяем Яндекс GPT при запуске
-    logger.info("Проверяю доступность Яндекс GPT...")
-    if YANDEX_API_KEY:
-        check_yandex_gpt()
-    
-    logger.info(f"Telegram Bot Token: {'установлен' if TELEGRAM_TOKEN else 'не установлен'}")
-    logger.info(f"Yandex GPT: {'доступен' if YANDEX_GPT_AVAILABLE else 'недоступен'}")
-    
     print("=" * 60)
-    print("🤖 TextAlchemic Bot - ЗАПУЩЕН НА BOT HOST")
+    print("🤖 TextAlchemic Bot v2.0 - ЗАПУСК")
     print("=" * 60)
-    print(f"Telegram Bot: {'✅' if TELEGRAM_TOKEN else '❌'}")
-    print(f"Yandex GPT: {'✅' if YANDEX_GPT_AVAILABLE else '❌'}")
-    print(f"Алгоритмы: ✅ 5 стилей")
+    print(f"Telegram Token: {'✅ Установлен' if TELEGRAM_TOKEN else '❌ Отсутствует'}")
+    print(f"Yandex API Key: {'✅ Установлен' if YANDEX_API_KEY and YANDEX_API_KEY != '' else '⚠️ Не настроен'}")
+    print(f"Yandex Folder ID: {YANDEX_FOLDER_ID}")
+    print(f"Yandex Model: {YANDEX_GPT_MODEL}")
+    print("=" * 60)
+    
+    if YANDEX_API_KEY and YANDEX_API_KEY != '':
+        print("🔍 Проверка Яндекс GPT...")
+        if check_yandex_gpt():
+            print("✅ Яндекс GPT доступен")
+        else:
+            print("⚠️ Яндекс GPT недоступен (но бот работает)")
+    else:
+        print("ℹ️ Яндекс GPT не настроен (алгоритмические стили работают)")
+    
     print("=" * 60)
     print("📡 Бот работает круглосуточно")
     print("⚡ Автоматический перезапуск")
-    print("📊 Логирование включено")
     print("=" * 60)
     
     # Создаем приложение
@@ -442,7 +446,6 @@ def main():
     # Обработчики
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CallbackQueryHandler(button_handler))
-    app.add_handler(CallbackQueryHandler(copy_handler, pattern="^copy$"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_message_handler))
     app.add_error_handler(error_handler)
     
