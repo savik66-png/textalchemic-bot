@@ -1,26 +1,4 @@
-# Ключи и секреты
 .env
-*.env
-.env.*
-
-# Кэш Python
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
-.venv/
-
-# ОС и редакторы
 .DS_Store
-Thumbs.db
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Логи и временные файлы
-logs/
-*.log
