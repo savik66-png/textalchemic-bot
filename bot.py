@@ -39,21 +39,6 @@ def get_styles_keyboard(page_num: int = 0):
             row.append(KeyboardButton(text=current_page_styles[i+1]))
         buttons.append(row)
 
-    # Добавляем кнопки навигации
-    nav_buttons = []
-    if total_pages > 1:
-        if page_num > 0:
-            nav_buttons.append(InlineKeyboardButton(text="⬅️ Назад", callback_data=f"styles_page_{page_num-1}"))
-        if page_num < total_pages - 1:
-            nav_buttons.append(InlineKeyboardButton(text="Вперёд ➡️", callback_data=f"styles_page_{page_num+1}"))
-        
-        # Добавляем строку с навигационными кнопками (или пустую строку, если одна страница)
-        if nav_buttons:
-            # Создаём временную Reply-клавиатуру для добавления inline-навигации.
-            # Это упрощённый способ. Более правильно - использовать InlineKeyboardMarkup для всего меню.
-            # Но для совместимости с текущей логикой бота, добавим подсказку в тексте сообщения.
-            pass # Навигация будет в отдельном сообщении или в тексте
-            
     keyboard = ReplyKeyboardMarkup(
         keyboard=buttons,
         resize_keyboard=True,
@@ -94,8 +79,11 @@ async def cmd_start(message: Message):
     styles_keyboard, current_page, total_pages = get_styles_keyboard(0)
     
     await message.answer(welcome_text, reply_markup=styles_keyboard, parse_mode='HTML')
+    # Показываем счётчик страниц ТОЛЬКО если их больше одной
     if total_pages > 1:
         await message.answer(f"(Стр. {current_page + 1}/{total_pages}). Выберите стиль или используйте навигацию (если доступна).")
+    #else:
+    #    await message.answer("Выберите стиль из списка ниже:")
 
 
 @dp.callback_query(F.data.startswith("styles_page_")) # Хэндлер для навигации по страницам (опционально, если переделаем на inline)
@@ -106,9 +94,12 @@ async def navigate_styles(call):
         styles_keyboard, current_page, total_pages = get_styles_keyboard(page_num)
         await call.message.edit_reply_markup(reply_markup=styles_keyboard) # Попытка обновить клавиатуру (не работает с ReplyKeyboard)
         # Так как ReplyKeyboard не обновляется, просто пошлём новое сообщение с инструкцией
-        await call.message.answer(f"(Стр. {current_page + 1}/{total_pages}). Выберите стиль.")
+        if total_pages > 1:
+            await call.message.answer(f"(Стр. {current_page + 1}/{total_pages}). Выберите стиль.")
+        #else:
+        #    await call.message.answer("Выберите стиль из списка ниже.")
     except (IndexError, ValueError):
-        await call.message.answer("Ошибка навигации по стилям.")
+        await call.message.answer("❌ Ошибка навигации по стилям.")
 
 
 @dp.message(F.text & F.text.lower().contains('начать сначала'))
@@ -180,6 +171,7 @@ async def handle_txt_document(message: Message):
         styles_keyboard, current_page, total_pages = get_styles_keyboard(0)
         style_choice_text = f"Файл загружен ({len(original_text)} символов). Теперь выбери, в каком стиле обработать текст:"
         await message.answer(style_choice_text, reply_markup=styles_keyboard)
+        # Показываем счётчик страниц ТОЛЬКО если их больше одной
         if total_pages > 1:
             await message.answer(f"(Стр. {current_page + 1}/{total_pages}). Выберите стиль.")
 
@@ -202,6 +194,7 @@ async def handle_text_and_states(message: Message):
         styles_keyboard, current_page, total_pages = get_styles_keyboard(0)
         style_choice_text = "Теперь выбери, в каком стиле обработать текст:"
         await message.answer(style_choice_text, reply_markup=styles_keyboard)
+        # Показываем счётчик страниц ТОЛЬКО если их больше одной
         if total_pages > 1:
             await message.answer(f"(Стр. {current_page + 1}/{total_pages}). Выберите стиль.")
 
