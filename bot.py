@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-TextAlchemic Bot — ФИНАЛЬНАЯ РАБОЧАЯ ВЕРСИЯ
-• Использует context.user_data вместо глобальных переменных
-• Правильный FOLDER_ID: b1gf28m0hpqbo55slm6d
-• Без зависимостей от config.py и dotenv
-• Сохраняет исходный текст для повторной обработки в других стилях
+TextAlchemic Bot — ИСПРАВЛЕННАЯ ВЕРСИЯ С ПРОСТОЙ ЛОГИКОЙ
+• Чёткая работа кнопок без путаницы
+• Сохранение текста для повторной обработки
+• Кнопка проверки статуса Яндекса
+• Без глобальных переменных
 """
 import os
 import random
@@ -13,9 +13,9 @@ import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
-# ==================== НАСТРОЙКИ (работает на BotHost без .env) ====================
+# ==================== НАСТРОЙКИ ====================
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN', '8542210651:AAG7Ze8DlRJwHrOYKPOrTqdnvJzLgcm23KQ')
-YANDEX_API_KEY = os.getenv('YANDEX_API_KEY', '')  # Оставьте пустым если нет ключа
+YANDEX_API_KEY = os.getenv('YANDEX_API_KEY', '')
 YANDEX_FOLDER_ID = os.getenv('YANDEX_FOLDER_ID', 'b1gf28m0hpqbo55slm6d')  # ← ПРАВИЛЬНЫЙ КАТАЛОГ!
 
 # ==================== ЛОГИРОВАНИЕ ====================
@@ -36,20 +36,17 @@ def transform_ice(text: str) -> str:
     facts = ["Улучшение производительности", "Оптимизация процессов", "Снижение затрат", "Рост качества", "Автоматизация рутины"]
     selected = random.sample(facts, min(5, len(facts)))
     lines = ["❄️ *КЛЮЧЕВЫЕ ФАКТЫ:*"] + [f"{i}. {fact}." for i, fact in enumerate(selected, 1)]
-    lines.append(f"\n📌 *Вывод:* {len(text.split())} слов")
+    lines.append(f"\n📌 *Итог:* {len(text.split())} слов")
     return "\n".join(lines)
 
 def transform_phoenix(text: str) -> str:
     emotions = ["🔥", "✨", "🚀", "🎯", "💥"]
     return f"""{random.choice(emotions)} *ЭМОЦИОНАЛЬНЫЙ АНАЛИЗ* {random.choice(emotions)}
 
-🔥 ВАЖНО! КЛЮЧЕВОЙ МОМЕНТ! 🔥
-
 ✨ {text}
 
 🎭 Настроение: Позитивное {random.choice(emotions)}
-📈 Потенциал: Высокий {random.choice(emotions)}
-💪 Рекомендация: Внедрять немедленно!"""
+📈 Потенциал: Высокий {random.choice(emotions)}"""
 
 def transform_mechanicus(text: str) -> str:
     return f"""⚙️ *ТЕХНИЧЕСКОЕ ОПИСАНИЕ*
@@ -59,20 +56,14 @@ def transform_mechanicus(text: str) -> str:
 
 **2. Параметры:**
 • Надежность: Высокая
-• Масштабируемость: Да  
-• Сложность: Средняя
-
-**3. Рекомендации:**
-Требует технической доработки."""
+• Масштабируемость: Да"""
 
 def transform_harmonicus(text: str) -> str:
     return f"""🌿 *ГАРМОНИЧНЫЙ АНАЛИЗ*
 
 {text}
 
----
-📖 *Комментарий:*
-Баланс между техническими и человеческими факторами."""
+📖 Баланс между техническими и человеческими факторами."""
 
 def transform_architect(text: str) -> str:
     return f"""🏛️ *СТРУКТУРИРОВАННЫЙ ПЛАН*
@@ -83,21 +74,17 @@ def transform_architect(text: str) -> str:
 **Раздел 2. Компоненты**
 1. Базовый модуль
 2. Вспомогательные элементы  
-3. Интеграционные решения
+3. Интеграционные решения"""
 
-**Раздел 3. Внедрение**
-Этап 1 → Этап 2 → Этап 3"""
-
-# ==================== ЯНДЕКС GPT (опционально) ====================
+# ==================== ЯНДЕКС GPT ====================
 def ask_yandex_gpt(text: str, style_id: str) -> str:
     if not YANDEX_API_KEY:
-        return None  # Возвращаем None → используем алгоритмический стиль
+        return None
     
-    # Промпты для разных стилей
     prompts = {
         "ice": "Ты — строгий аналитик. Преобразуй текст в чёткий фактологический список. Не придумывай новые факты.",
         "phoenix": "Ты — мотивационный спикер. Перескажи текст эмоционально с эмодзи 🚀✨🔥, НО СОХРАНИ СМЫСЛ.",
-        "mechanicus": "Ты — технический писатель. Преобразуй текст в техническую документацию: 1. Описание 2. Параметры 3. Рекомендации.",
+        "mechanicus": "Ты — технический писатель. Преобразуй текст в техническую документацию.",
         "harmonicus": "Ты — философ-гуманист. Преобразуй текст в гармоничное эссе с плавными переходами.",
         "architect": "Ты — архитектор систем. Преобразуй текст в структурированный план с иерархией."
     }
@@ -131,12 +118,51 @@ def ask_yandex_gpt(text: str, style_id: str) -> str:
         logger.error(f"Ошибка Яндекс GPT: {e}")
         return None
 
+def check_yandex_status() -> str:
+    """Проверка статуса подключения к Яндексу"""
+    if not YANDEX_API_KEY:
+        return "❌ Яндекс GPT не настроен (нет API ключа)"
+    
+    try:
+        response = requests.post(
+            "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
+            headers={
+                "Authorization": f"Api-Key {YANDEX_API_KEY}",
+                "Content-Type": "application/json",
+                "x-folder-id": YANDEX_FOLDER_ID
+            },
+            json={
+                "modelUri": f"gpt://{YANDEX_FOLDER_ID}/yandexgpt-lite",
+                "completionOptions": {"temperature": 0.1, "maxTokens": 10},
+                "messages": [{"role": "user", "text": "привет"}]
+            },
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return f"✅ Яндекс GPT работает\n📁 Каталог: {YANDEX_FOLDER_ID}\n🤖 Модель: yandexgpt-lite"
+        elif response.status_code == 401:
+            return "❌ Ошибка авторизации (неправильный API ключ)"
+        elif response.status_code == 403:
+            return f"❌ Доступ запрещён (проверьте FOLDER_ID: {YANDEX_FOLDER_ID})"
+        else:
+            return f"⚠️ Ошибка: {response.status_code}"
+            
+    except requests.exceptions.Timeout:
+        return "⏱️ Таймаут подключения к Яндексу"
+    except Exception as e:
+        return f"💥 Ошибка: {str(e)[:100]}"
+
 # ==================== ОБРАБОТЧИКИ TELEGRAM ====================
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /start — главное меню"""
     keyboard = [[InlineKeyboardButton(name, callback_data=f"style_{style_id}")] 
                 for style_id, name in STYLES.items()]
-    keyboard.append([InlineKeyboardButton("ℹ️ Как работает бот", callback_data="help")])
+    keyboard.append([InlineKeyboardButton("🔍 Статус Яндекс GPT", callback_data="check_yandex")])
+    
+    # Если есть сохранённый текст — показываем кнопку для повторной обработки
+    if context.user_data.get("last_original_text"):
+        keyboard.append([InlineKeyboardButton("🔁 Обработать сохранённый текст", callback_data="reuse_saved")])
     
     await update.message.reply_text(
         "🤖 *TextAlchemic Bot*\n"
@@ -150,9 +176,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     
+    # Выбор стиля
     if query.data.startswith("style_"):
         style_id = query.data.replace("style_", "")
-        context.user_data["style"] = style_id  # ← СОХРАНЯЕМ В КОНТЕКСТЕ (не глобальная переменная!)
+        context.user_data["selected_style"] = style_id
         
         await query.edit_message_text(
             f"✅ Выбрано: *{STYLES[style_id]}*\n"
@@ -160,60 +187,82 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
     
-    elif query.data == "help":
+    # Проверка статуса Яндекса
+    elif query.data == "check_yandex":
+        status = check_yandex_status()
+        keyboard = [[InlineKeyboardButton("◀️ Назад", callback_data="back_to_start")]]
         await query.edit_message_text(
-            "✨ *Как это работает:*\n"
-            "1. Выберите стиль через /start\n"
-            "2. Отправьте текст\n"
-            "3. Получите результат от нейросети (или алгоритма)\n"
-            "4. Отправьте НОВЫЙ текст — стиль сохранится!\n"
-            "5. Нажмите /start чтобы сменить стиль",
+            f"📊 *Статус Яндекс GPT:*\n\n{status}",
+            reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown'
         )
     
-    elif query.data == "new_text":
-        style_id = context.user_data.get("style", "ice")
-        await query.edit_message_text(
-            f"📝 Отправьте новый текст для стиля *{STYLES[style_id]}*:",
-            parse_mode='Markdown'
-        )
-    
-    elif query.data == "new_style":
+    # Назад в главное меню
+    elif query.data == "back_to_start":
         await start_command(update, context)
     
-    elif query.data == "reuse_text":
-        # Повторная обработка того же текста в новом стиле
-        original_text = context.user_data.get("last_original_text")
-        if original_text:
-            context.user_data["reuse_mode"] = True
-            await start_command(update, context)
-        else:
+    # Повторная обработка сохранённого текста
+    elif query.data == "reuse_saved":
+        text = context.user_data.get("last_original_text")
+        style_id = context.user_data.get("selected_style", "ice")
+        
+        if not text:
             await query.answer("❌ Нет сохранённого текста", show_alert=True)
+            return
+        
+        if not style_id:
+            await query.answer("❌ Сначала выберите стиль через /start", show_alert=True)
+            return
+        
+        # Обрабатываем сохранённый текст
+        await query.edit_message_text("⏳ Обрабатываю сохранённый текст...")
+        
+        # Сначала пробуем Яндекс GPT
+        result = ask_yandex_gpt(text, style_id)
+        
+        # Если Яндекс недоступен — используем алгоритмический стиль
+        if result is None:
+            transformers = {
+                "ice": transform_ice,
+                "phoenix": transform_phoenix,
+                "mechanicus": transform_mechanicus,
+                "harmonicus": transform_harmonicus,
+                "architect": transform_architect
+            }
+            transform_func = transformers.get(style_id, transform_ice)
+            result = transform_func(text)
+        
+        # Сохраняем результат
+        context.user_data["last_result"] = result
+        
+        # Кнопки после обработки
+        keyboard = [
+            [InlineKeyboardButton("🔄 Новый текст", callback_data="new_text")],
+            [InlineKeyboardButton("🎨 Сменить стиль", callback_data="change_style")],
+            [InlineKeyboardButton("🔁 Ещё раз в другом стиле", callback_data="reuse_prompt")],
+            [InlineKeyboardButton("◀️ Меню", callback_data="back_to_start")]
+        ]
+        
+        await query.message.reply_text(
+            f"✨ *{STYLES[style_id]}*\n\n{result}",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
 
 async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработка текста"""
     text = update.message.text.strip()
     
-    # Если в режиме повторного использования — сохраняем текст и просим выбрать стиль
-    if context.user_data.get("reuse_mode"):
-        context.user_data["last_original_text"] = text
-        context.user_data["reuse_mode"] = False
-        await update.message.reply_text(
-            "✅ Текст сохранён. Теперь выберите стиль через /start",
-            parse_mode='Markdown'
-        )
-        return
-    
     if len(text) < 10:
         await update.message.reply_text("📝 Минимум 10 символов")
         return
     
-    style_id = context.user_data.get("style")
+    style_id = context.user_data.get("selected_style")
     if not style_id:
         await update.message.reply_text("⚠️ Сначала выберите стиль через /start")
         return
     
-    # Сохраняем исходный текст для повторной обработки
+    # Сохраняем текст для повторной обработки
     context.user_data["last_original_text"] = text
     
     # Показываем "печатает..."
@@ -237,24 +286,95 @@ async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     # Сохраняем результат
     context.user_data["last_result"] = result
     
-    # Кнопки для продолжения
+    # Кнопки после обработки
     keyboard = [
-        [InlineKeyboardButton("🔄 Новый текст (в этом стиле)", callback_data="new_text")],
-        [InlineKeyboardButton("🎨 Сменить стиль", callback_data="new_style")],
-        [InlineKeyboardButton("🔁 Обработать в другом стиле", callback_data="reuse_text")]
+        [InlineKeyboardButton("🔄 Новый текст", callback_data="new_text")],
+        [InlineKeyboardButton("🎨 Сменить стиль", callback_data="change_style")],
+        [InlineKeyboardButton("🔁 Обработать в другом стиле", callback_data="reuse_prompt")],
+        [InlineKeyboardButton("◀️ Меню", callback_data="back_to_start")]
     ]
     
     await update.message.reply_text(
-        f"✨ *{STYLES[style_id]}*\n\n{result}\n\n"
-        f"💡 Выберите действие ниже",
+        f"✨ *{STYLES[style_id]}*\n\n{result}",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode='Markdown'
     )
 
+async def continue_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка кнопок после результата"""
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == "new_text":
+        style_id = context.user_data.get("selected_style", "ice")
+        await query.edit_message_text(
+            f"📝 Отправьте новый текст для стиля *{STYLES[style_id]}*:",
+            parse_mode='Markdown'
+        )
+    
+    elif query.data == "change_style":
+        await start_command(update, context)
+    
+    elif query.data == "reuse_prompt":
+        # Просим выбрать новый стиль для сохранённого текста
+        keyboard = [[InlineKeyboardButton(name, callback_data=f"reuse_style_{style_id}")] 
+                    for style_id, name in STYLES.items()]
+        keyboard.append([InlineKeyboardButton("◀️ Отмена", callback_data="back_to_start")])
+        
+        await query.edit_message_text(
+            "🔄 *Выберите новый стиль* для обработки сохранённого текста:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+    
+    elif query.data.startswith("reuse_style_"):
+        style_id = query.data.replace("reuse_style_", "")
+        text = context.user_data.get("last_original_text")
+        
+        if not text:
+            await query.answer("❌ Нет сохранённого текста", show_alert=True)
+            return
+        
+        # Обрабатываем в новом стиле
+        await query.edit_message_text("⏳ Обрабатываю в новом стиле...")
+        
+        # Сначала пробуем Яндекс GPT
+        result = ask_yandex_gpt(text, style_id)
+        
+        # Если Яндекс недоступен — используем алгоритмический стиль
+        if result is None:
+            transformers = {
+                "ice": transform_ice,
+                "phoenix": transform_phoenix,
+                "mechanicus": transform_mechanicus,
+                "harmonicus": transform_harmonicus,
+                "architect": transform_architect
+            }
+            transform_func = transformers.get(style_id, transform_ice)
+            result = transform_func(text)
+        
+        # Сохраняем новый результат и стиль
+        context.user_data["last_result"] = result
+        context.user_data["selected_style"] = style_id
+        
+        # Кнопки после обработки
+        keyboard = [
+            [InlineKeyboardButton("🔄 Новый текст", callback_data="new_text")],
+            [InlineKeyboardButton("🎨 Сменить стиль", callback_data="change_style")],
+            [InlineKeyboardButton("🔁 Ещё раз в другом стиле", callback_data="reuse_prompt")],
+            [InlineKeyboardButton("◀️ Меню", callback_data="back_to_start")]
+        ]
+        
+        await query.message.reply_text(
+            f"✨ *{STYLES[style_id]}*\n\n{result}",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+
 # ==================== ЗАПУСК ====================
 def main():
     print("=" * 60)
-    print("🤖 TextAlchemic Bot — ФИНАЛЬНАЯ РАБОЧАЯ ВЕРСИЯ")
+    print("🤖 TextAlchemic Bot — ИСПРАВЛЕННАЯ ВЕРСИЯ")
     print("=" * 60)
     print(f"Токен: {'✅' if TELEGRAM_TOKEN else '❌'}")
     print(f"Яндекс GPT: {'✅' if YANDEX_API_KEY else '⚠️ Без ИИ (алгоритмы)'}")
@@ -263,7 +383,8 @@ def main():
     
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start_command))
-    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(CallbackQueryHandler(button_handler, pattern="^(style_|check_yandex|back_to_start|reuse_saved)$"))
+    app.add_handler(CallbackQueryHandler(continue_handler, pattern="^(new_text|change_style|reuse_prompt|reuse_style_)"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_message_handler))
     
     print("🚀 Бот запущен! Состояние сохраняется между запросами.")
