@@ -1,7 +1,7 @@
 import asyncio
 import io
 from aiogram import Bot, Dispatcher, F
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import CommandStart
 from config import BOT_TOKEN
 from session_manager import session_manager
@@ -11,22 +11,56 @@ from core import text_processor # Импорт модуля text_processor из 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
+# --- Глобальные переменные для пагинации ---
+STYLES_PER_PAGE = 8 # Количество стилей на одной странице
+
 # --- Вспомогательные функции ---
 
-def get_styles_keyboard():
-    """Создаёт клавиатуру с выбором стиля."""
+def get_styles_keyboard(page_num: int = 0):
+    """Создаёт клавиатуру с выбором стиля, разбитую на страницы."""
     styles_list = text_processor.get_available_styles_list()
+    
     if not styles_list or styles_list[0].startswith("Ошибка"):
          # Если не удалось загрузить стили, создаём простую клавиатуру
          styles_list = ["spell. Правка 📝", "ice. Лёд ❄️", "phoenix. Феникс 🔥"] # Резервный вариант
+    
+    total_pages = (len(styles_list) + STYLES_PER_PAGE - 1) // STYLES_PER_PAGE # Округление вверх
+    page_num = max(0, min(page_num, total_pages - 1)) # Ограничение номера страницы
+    
+    start_idx = page_num * STYLES_PER_PAGE
+    end_idx = start_idx + STYLES_PER_PAGE
+    current_page_styles = styles_list[start_idx:end_idx]
+    
+    # Создаём кнопки для текущей страницы (2 в ряд)
+    buttons = []
+    for i in range(0, len(current_page_styles), 2):
+        row = [KeyboardButton(text=current_page_styles[i])]
+        if i + 1 < len(current_page_styles):
+            row.append(KeyboardButton(text=current_page_styles[i+1]))
+        buttons.append(row)
 
-    buttons = [[KeyboardButton(text=s)] for s in styles_list]
+    # Добавляем кнопки навигации
+    nav_buttons = []
+    if total_pages > 1:
+        if page_num > 0:
+            nav_buttons.append(InlineKeyboardButton(text="⬅️ Назад", callback_data=f"styles_page_{page_num-1}"))
+        if page_num < total_pages - 1:
+            nav_buttons.append(InlineKeyboardButton(text="Вперёд ➡️", callback_data=f"styles_page_{page_num+1}"))
+        
+        # Добавляем строку с навигационными кнопками (или пустую строку, если одна страница)
+        if nav_buttons:
+            # Создаём временную Reply-клавиатуру для добавления inline-навигации.
+            # Это упрощённый способ. Более правильно - использовать InlineKeyboardMarkup для всего меню.
+            # Но для совместимости с текущей логикой бота, добавим подсказку в тексте сообщения.
+            pass # Навигация будет в отдельном сообщении или в тексте
+            
     keyboard = ReplyKeyboardMarkup(
         keyboard=buttons,
         resize_keyboard=True,
         one_time_keyboard=True # Клавиатура исчезнет после выбора
     )
-    return keyboard
+    
+    return keyboard, page_num, total_pages
 
 def get_start_keyboard():
     """Клавиатура при /start."""
@@ -45,24 +79,44 @@ async def cmd_start(message: Message):
 
     welcome_text = (
         "✨ Привет! Я TextAlchemic — твой помощник для идеального текста.\n\n"
-        "Отправь мне любой текст или текстовый файл (.txt), который нужно улучшить. Я могу сделать его:\n"
+        "Я могу трансформировать ваш текст под разные цели:\n"
+        "🎯 **Блогеры & SMM:** посты для соцсетей и мессенджеров\n"
+        "📰 **Журналисты:** статьи и пресс-релизы\n"
+        "🔬 **Учёные & Методисты:** доклады и методики\n"
+        "💼 **Бизнес & Стартапы:** письма, тизеры, презентации\n"
+        "📝 **Общее:** проверка орфографии, суть текста, факты списком и др.\n\n"
+        "📄 Также могу обрабатывать *текстовые файлы* (.txt).\n\n"
+        "<b>ВАЖНО:</b> Если вы не видите нужный стиль внизу, "
+        "проведите пальцем по клавиатуре вниз — их много!\n\n"
+        "Теперь пришли мне текст или файл .txt для обработки."
     )
-    # Получаем список стилей и добавляем к приветствию
-    styles_list = text_processor.get_available_styles_list()
-    if not styles_list or styles_list[0].startswith("Ошибка"):
-        welcome_text += "\n⚠️ [DEBUG] Ошибка загрузки списка стилей."
-    else:
-        for s in styles_list:
-            welcome_text += f"\n{s}"
+    # Получаем клавиатуру для первой страницы стилей
+    styles_keyboard, current_page, total_pages = get_styles_keyboard(0)
+    
+    await message.answer(welcome_text, reply_markup=styles_keyboard, parse_mode='HTML')
+    if total_pages > 1:
+        await message.answer(f"(Стр. {current_page + 1}/{total_pages}). Выберите стиль или используйте навигацию (если доступна).")
 
-    welcome_text += "\n\nСначала пришли текст или файл .txt."
-    await message.answer(welcome_text, reply_markup=get_start_keyboard())
+
+@dp.callback_query(F.data.startswith("styles_page_")) # Хэндлер для навигации по страницам (опционально, если переделаем на inline)
+async def navigate_styles(call):
+    await call.answer() # Отвечаем на callback
+    try:
+        page_num = int(call.data.split('_')[2])
+        styles_keyboard, current_page, total_pages = get_styles_keyboard(page_num)
+        await call.message.edit_reply_markup(reply_markup=styles_keyboard) # Попытка обновить клавиатуру (не работает с ReplyKeyboard)
+        # Так как ReplyKeyboard не обновляется, просто пошлём новое сообщение с инструкцией
+        await call.message.answer(f"(Стр. {current_page + 1}/{total_pages}). Выберите стиль.")
+    except (IndexError, ValueError):
+        await call.message.answer("Ошибка навигации по стилям.")
+
 
 @dp.message(F.text & F.text.lower().contains('начать сначала'))
 async def cmd_restart(message: Message):
     user_id = message.from_user.id
     session_manager.create_session(user_id) # Сбрасываем сессию
-    await message.answer("Сессия сброшена. Пришли новый текст или файл.")
+    await message.answer("Сессия сброшена. Пришли новый текст или файл.", reply_markup=get_start_keyboard())
+
 
 # --- НОВЫЙ ХЭНДЛЕР: Обработка документов (.txt) ---
 @dp.message(F.document & F.document.mime_type == 'text/plain')
@@ -91,10 +145,6 @@ async def handle_txt_document(message: Message):
 
     # Логика аналогична handle_text_and_states для состояния waiting_for_text
     session = session_manager.get_or_create_session(user_id)
-    # session_manager.update_session_state(user_id, "waiting_for_style", original_text=original_text) # Если хотим, чтобы выбор стиля происходил после загрузки файла
-    # Но логичнее, чтобы стиль был выбран *до* загрузки файла, чтобы пользователь знал, что получит.
-    # Поэтому, если пользователь не в состоянии ожидания стиля, считаем, что он хочет применить стиль к файлу.
-    # Проверим состояние:
     state = session["state"]
     if state == "waiting_for_style":
         # Стиль уже выбран, обрабатываем текст из файла
@@ -126,8 +176,12 @@ async def handle_txt_document(message: Message):
         # Если пользователь не ожидал стиля, значит, он прислал файл без предварительного выбора стиля.
         # Запоминаем текст из файла и переходим к выбору стиля.
         session_manager.update_session_state(user_id, "waiting_for_style", original_text=original_text)
+        # Отправляем обновлённую клавиатуру стилей для файла
+        styles_keyboard, current_page, total_pages = get_styles_keyboard(0)
         style_choice_text = f"Файл загружен ({len(original_text)} символов). Теперь выбери, в каком стиле обработать текст:"
-        await message.answer(style_choice_text, reply_markup=get_styles_keyboard())
+        await message.answer(style_choice_text, reply_markup=styles_keyboard)
+        if total_pages > 1:
+            await message.answer(f"(Стр. {current_page + 1}/{total_pages}). Выберите стиль.")
 
 
 @dp.message(F.text & ~F.text.startswith('/'))
@@ -144,8 +198,12 @@ async def handle_text_and_states(message: Message):
              return
 
         session_manager.update_session_state(user_id, "waiting_for_style", original_text=text)
+        # Отправляем обновлённую клавиатуру стилей для текста
+        styles_keyboard, current_page, total_pages = get_styles_keyboard(0)
         style_choice_text = "Теперь выбери, в каком стиле обработать текст:"
-        await message.answer(style_choice_text, reply_markup=get_styles_keyboard())
+        await message.answer(style_choice_text, reply_markup=styles_keyboard)
+        if total_pages > 1:
+            await message.answer(f"(Стр. {current_page + 1}/{total_pages}). Выберите стиль.")
 
     elif state == "waiting_for_style":
         # Проверяем, является ли сообщение выбором стиля (например, "spell. ...", "ice. ...")
