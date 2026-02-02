@@ -105,7 +105,14 @@ async def navigate_styles(call):
 async def select_style(call):
     await call.answer() # Отвечаем на callback
     try:
-        selected_style_id = call.data.split('_')[2]
+        # selected_style_id = call.data.split('_')[2] # Старая строка
+        # Новая строка: извлекаем всё после "select_style_"
+        if call.data.startswith("select_style_"):
+            selected_style_id = call.data[len("select_style_"):]
+        else:
+            # Если формат неожиданный, выбрасываем ошибку
+            raise ValueError("Неверный формат callback_data для выбора стиля")
+
         # Получаем текст из сессии
         user_id = call.from_user.id
         session = session_manager.get_or_create_session(user_id)
@@ -134,8 +141,9 @@ async def select_style(call):
         session_manager.create_session(user_id)
         await call.message.answer("✅ Обработка текста завершена.", reply_markup=get_start_keyboard())
 
-    except (IndexError, ValueError):
-        await call.message.answer("❌ Ошибка выбора стиля.")
+    except (IndexError, ValueError, KeyError) as e: # Добавим KeyError в обработку
+        print(f"[ERROR] Ошибка выбора стиля: {e}") # Логируем ошибку
+        await call.message.answer("❌ Ошибка выбора стиля. Попробуйте снова или начните сначала.")
 
 
 @dp.message(F.text & F.text.lower().contains('начать сначала'))
