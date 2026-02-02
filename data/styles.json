@@ -22,31 +22,66 @@
       "requires_expensive_model": false
     },
     {
-      "id": "emotional",
-      "name": "Эмоциональный с эмодзи",
-      "desc": "Добавляет эмоциональность и релевантные эмодзи.",
-      "prompt_key": "emotional_style",
+      "id": "blogger_post",
+      "name": "Блогер → Пост",
+      "desc": "Создать пост для соцсетей",
+      "prompt_key": "role_blogger_post",
       "requires_expensive_model": false
     },
     {
-      "id": "pro",
-      "name": "Профессиональный",
-      "desc": "Переписывает в сухом, деловом тоне.",
-      "prompt_key": "professional_style",
+      "id": "messenger",
+      "name": "Блогер → Мессенджер",
+      "desc": "Создать пост для мессенджеров",
+      "prompt_key": "role_blogger_messenger",
       "requires_expensive_model": false
     },
     {
-      "id": "summary",
-      "name": "Короткий с выводом",
-      "desc": "Создаёт краткое изложение и основной вывод.",
-      "prompt_key": "summary_style",
+      "id": "journalist",
+      "name": "Журналист",
+      "desc": "Оформить как статью для СМИ",
+      "prompt_key": "role_journalist",
       "requires_expensive_model": false
     },
     {
-      "id": "social",
-      "name": "Структурированный для соцсетей",
-      "desc": "Форматирует текст для постов в соцсетях.",
-      "prompt_key": "social_style",
+      "id": "scientist",
+      "name": "Ученый/Методист",
+      "desc": "Структурировать в методику/доклад",
+      "prompt_key": "role_scientist",
+      "requires_expensive_model": false
+    },
+    {
+      "id": "startup_pres",
+      "name": "Стартапер → Презентация",
+      "desc": "Подготовить для слайдов",
+      "prompt_key": "role_startup_pres",
+      "requires_expensive_model": false
+    },
+    {
+      "id": "startup_tizer",
+      "name": "Стартапер → Тизер",
+      "desc": "Создать интригующий анонс",
+      "prompt_key": "role_startup_tizer",
+      "requires_expensive_model": false
+    },
+    {
+      "id": "business_email",
+      "name": "Бизнесмен → Письмо",
+      "desc": "Оформить деловое письмо",
+      "prompt_key": "role_business_email",
+      "requires_expensive_model": false
+    },
+    {
+      "id": "exec_summary",
+      "name": "Суть & Выводы",
+      "desc": "Ключевые моменты и выводы",
+      "prompt_key": "executive_summary",
+      "requires_expensive_model": false
+    },
+    {
+      "id": "transcript_summary",
+      "name": "Транскрипт → Суть",
+      "desc": "Выжимка посылов и договоренностей",
+      "prompt_key": "transcript_summary",
       "requires_expensive_model": false
     }
   ]
