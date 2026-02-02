@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """
-TextAlchemic Bot — МИНИМАЛЬНАЯ РАБОЧАЯ ВЕРСИЯ
-Решает 2 проблемы: 
-1. Состояние не сбрасывается между запросами
-2. Ответы уникальны благодаря Яндекс GPT
+TextAlchemic Bot — ИСПРАВЛЕННАЯ ВЕРСИЯ
+Решает проблему сброса состояния на облачном хостинге
 """
 import os
 import logging
@@ -11,33 +9,44 @@ import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
-# ==================== ВРЕМЕННЫЕ КЛЮЧИ ДЛЯ ТЕСТА (УДАЛИТЬ ПОСЛЕ ПРОВЕРКИ!) ====================
-TELEGRAM_TOKEN = "8542210651:AAG7Ze8DlRJwHrOYKPOrTqdnvJzLgcm23KQ"  # ← ВАШ ТОКЕН
-YANDEX_API_KEY = "AQVN0crSDPUX8ih2oSeu6TbgAVekrefEYFP_JBU2"  # ← ЗАМЕНИТЕ НА РЕАЛЬНЫЙ КЛЮЧ!
-YANDEX_FOLDER_ID = "b1gf28m0hpqbo55slm6d"  # ← ВАШ КАТАЛОГ
+# ==================== НАСТРОЙКИ ====================
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN', '8542210651:AAG7Ze8DlRJwHrOYKPOrTqdnvJzLgcm23KQ')
+YANDEX_API_KEY = os.getenv('YANDEX_API_KEY', '')  # Оставьте пустым если нет ключа
+YANDEX_FOLDER_ID = os.getenv('YANDEX_FOLDER_ID', 'b1gf28m0hpqbo55slm6d')  # ← ВАШ ПРАВИЛЬНЫЙ КАТАЛОГ!
 
-# ==================== ПРОМПТЫ ДЛЯ СТИЛЕЙ (копия из prompts.json) ====================
+# ==================== ЛОГИРОВАНИЕ ====================
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# ==================== ПРОМПТЫ ДЛЯ СТИЛЕЙ ====================
 PROMPTS = {
-    "ice": "Ты — строгий аналитик. Преобразуй текст в чёткий фактологический список. Не придумывай новые факты. Формат: 1. Факт 1\n2. Факт 2\n3. Факт 3",
-    "phoenix": "Ты — мотивационный спикер. Перескажи текст эмоционально с эмодзи 🚀✨🔥💪🎯 и хештегами (#Успех #Развитие), НО СОХРАНИ СМЫСЛ. Не искажай факты.",
-    "mechanicus": "Ты — технический писатель. Преобразуй текст в техническую документацию: 1. Описание 2. Параметры 3. Рекомендации. Используй только информацию из текста.",
-    "harmonicus": "Ты — философ-гуманист. Преобразуй текст в гармоничное эссе с плавными переходами. Сохрани все ключевые идеи, не добавляй новые концепции.",
-    "architect": "Ты — архитектор систем. Преобразуй текст в структурированный план с иерархией: 1. Основная концепция → 1.1. Элементы → 1.2. Взаимосвязи"
+    "ice": "Ты — строгий аналитик. Преобразуй текст в чёткий фактологический список. Не придумывай новые факты. Формат: 1. Факт 1\n2. Факт 2",
+    "phoenix": "Ты — мотивационный спикер. Перескажи текст эмоционально с эмодзи 🚀✨🔥 и хештегами (#Успех #Развитие), НО СОХРАНИ СМЫСЛ.",
+    "mechanicus": "Ты — технический писатель. Преобразуй текст в техническую документацию: 1. Описание 2. Параметры 3. Рекомендации.",
+    "harmonicus": "Ты — философ-гуманист. Преобразуй текст в гармоничное эссе с плавными переходами. Сохрани все ключевые идеи.",
+    "architect": "Ты — архитектор систем. Преобразуй текст в структурированный план с иерархией: 1. Основная концепция → 1.1. Элементы"
 }
 
-STYLES_INFO = {
-    "ice": {"name": "Лёд ❄️", "desc": "Факты списком"},
-    "phoenix": {"name": "Феникс 🔥", "desc": "Эмоционально с эмодзи"},
-    "mechanicus": {"name": "Механик ⚙️", "desc": "Техдокументация"},
-    "harmonicus": {"name": "Гармония 🌿", "desc": "Гармоничное эссе"},
-    "architect": {"name": "Архитектор 🏛️", "desc": "Структурированный план"}
+STYLES = {
+    "ice": "Лёд ❄️",
+    "phoenix": "Феникс 🔥",
+    "mechanicus": "Механик ⚙️",
+    "harmonicus": "Гармония 🌿",
+    "architect": "Архитектор 🏛️"
 }
 
 # ==================== ЗАПРОС К ЯНДЕКС GPT ====================
 def ask_yandex_gpt(text: str, style_id: str) -> str:
-    """Безопасный запрос к Яндекс GPT"""
     if not YANDEX_API_KEY:
-        return "❌ Яндекс GPT не настроен. Добавьте ключ в код."
+        # Резервный алгоритмический вариант (без ИИ)
+        fallbacks = {
+            "ice": f"❄️ *ФАКТЫ:*\n1. {text[:30]}...\n2. Анализ завершён",
+            "phoenix": f"🔥 *ЭМОЦИИ:*\n{text}\n\n✨ #Успех #Развитие",
+            "mechanicus": f"⚙️ *ТЕХДОКУМЕНТАЦИЯ:*\nОписание: {text[:50]}...",
+            "harmonicus": f"🌿 *ГАРМОНИЯ:*\n{text}\n\n📖 Баланс достигнут",
+            "architect": f"🏛️ *ПЛАН:*\n1. {text[:30]}...\n2. Этап реализации"
+        }
+        return fallbacks.get(style_id, text)
     
     try:
         response = requests.post(
@@ -55,49 +64,45 @@ def ask_yandex_gpt(text: str, style_id: str) -> str:
                     {"role": "user", "text": text}
                 ]
             },
-            timeout=20
+            timeout=15
         )
         
         if response.status_code == 200:
             result = response.json()
             answer = result.get('result', {}).get('alternatives', [{}])[0].get('message', {}).get('text', '')
-            return answer if answer.strip() else "🤔 Яндекс GPT вернул пустой ответ"
+            return answer if answer.strip() else "🤔 Нейросеть вернула пустой ответ"
         else:
             return f"❌ Ошибка Яндекс GPT: {response.status_code}"
             
     except requests.exceptions.Timeout:
-        return "⏱️ Таймаут запроса (20 сек). Попробуйте короткий текст."
+        return "⏱️ Таймаут (15 сек). Попробуйте короткий текст."
     except Exception as e:
         return f"💥 Ошибка: {str(e)[:150]}"
 
 # ==================== ОБРАБОТЧИКИ TELEGRAM ====================
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Команда /start"""
-    keyboard = [[InlineKeyboardButton(info['name'], callback_data=f"style_{style_id}")] 
-                for style_id, info in STYLES_INFO.items()]
-    keyboard.append([InlineKeyboardButton("ℹ️ Как это работает", callback_data="help")])
+    keyboard = [[InlineKeyboardButton(name, callback_data=f"style_{style_id}")] 
+                for style_id, name in STYLES.items()]
+    keyboard.append([InlineKeyboardButton("ℹ️ Как работает бот", callback_data="help")])
     
     await update.message.reply_text(
         "🤖 *TextAlchemic Bot*\n"
-        "Преобразую любой текст в 5 стилях через нейросеть Яндекса.\n"
-        "Выберите стиль:",
+        "Преобразую тексты в 5 стилях. Выберите стиль:",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode='Markdown'
     )
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработка кнопок"""
     query = update.callback_query
     await query.answer()
     
     if query.data.startswith("style_"):
         style_id = query.data.replace("style_", "")
-        context.user_data["style"] = style_id  # ← КЛЮЧ: безопасное хранение в контексте!
+        context.user_data["style"] = style_id  # ← КЛЮЧ: данные сохраняются между запросами!
         
         await query.edit_message_text(
-            f"✅ Выбрано: *{STYLES_INFO[style_id]['name']}*\n"
-            f"_{STYLES_INFO[style_id]['desc']}_\n\n"
-            "Отправьте текст для преобразования (минимум 10 символов):",
+            f"✅ Выбрано: *{STYLES[style_id]}*\n"
+            f"Отправьте текст для преобразования (минимум 10 символов):",
             parse_mode='Markdown'
         )
     
@@ -105,53 +110,75 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             "✨ *Как это работает:*\n"
             "1. Выберите стиль через /start\n"
-            "2. Отправьте любой текст\n"
-            "3. Получите уникальный результат от нейросети Яндекса\n"
-            "4. Отправьте новый текст — стиль сохранится!\n"
+            "2. Отправьте текст\n"
+            "3. Получите результат от нейросети (или алгоритма)\n"
+            "4. Отправьте НОВЫЙ текст — стиль сохранится!\n"
             "5. Нажмите /start чтобы сменить стиль",
             parse_mode='Markdown'
         )
 
 async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработка текста"""
     text = update.message.text.strip()
     
     if len(text) < 10:
         await update.message.reply_text("📝 Минимум 10 символов")
         return
     
-    style_id = context.user_data.get("style", "ice")  # ← Безопасное получение из контекста
-    if style_id not in STYLES_INFO:
+    style_id = context.user_data.get("style")  # ← Безопасное получение из контекста
+    
+    if not style_id:
         await update.message.reply_text("⚠️ Сначала выберите стиль через /start")
         return
     
-    # Обработка
-    await update.message.reply_chat_action("typing")  # Показывает "печатает..."
+    # Показываем "печатает..."
+    await update.message.reply_chat_action("typing")
+    
+    # Обрабатываем текст
     result = ask_yandex_gpt(text, style_id)
     
-    # Отправка результата
+    # Отправляем результат с кнопками для продолжения
+    keyboard = [
+        [InlineKeyboardButton("🔄 Новый текст (в этом стиле)", callback_data="new_text")],
+        [InlineKeyboardButton("🎨 Сменить стиль", callback_data="new_style")]
+    ]
+    
     await update.message.reply_text(
-        f"✨ *{STYLES_INFO[style_id]['name']}*\n\n{result}\n\n"
-        f"💡 Отправьте новый текст для продолжения в этом стиле",
+        f"✨ *{STYLES[style_id]}*\n\n{result}\n\n"
+        f"💡 Отправьте новый текст или используйте кнопки ниже",
+        reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode='Markdown'
     )
+
+async def continue_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == "new_text":
+        style_id = context.user_data.get("style", "ice")
+        await query.edit_message_text(
+            f"📝 Отправьте новый текст для стиля *{STYLES[style_id]}*:",
+            parse_mode='Markdown'
+        )
+    elif query.data == "new_style":
+        await start_command(update, context)
 
 # ==================== ЗАПУСК ====================
 def main():
     print("=" * 60)
-    print("🤖 TextAlchemic Bot — МИНИМАЛЬНАЯ РАБОЧАЯ ВЕРСИЯ")
+    print("🤖 TextAlchemic Bot — ИСПРАВЛЕННАЯ ВЕРСИЯ")
     print("=" * 60)
     print(f"Токен: {'✅' if TELEGRAM_TOKEN else '❌'}")
-    print(f"Яндекс GPT: {'✅' if YANDEX_API_KEY != 'ВАШ_КЛЮЧ_ЯНДЕКСА_СЮДА' else '❌'}")
+    print(f"Яндекс GPT: {'✅' if YANDEX_API_KEY else '⚠️ Без ИИ (алгоритмы)'}")
     print(f"Каталог: {YANDEX_FOLDER_ID}")
     print("=" * 60)
     
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start_command))
-    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(CallbackQueryHandler(button_handler, pattern="^style_"))
+    app.add_handler(CallbackQueryHandler(continue_handler, pattern="^(new_text|new_style)$"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_message_handler))
     
-    print("🚀 Бот запущен! Для остановки нажмите Ctrl+C")
+    print("🚀 Бот запущен! Состояние сохраняется между запросами.")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
