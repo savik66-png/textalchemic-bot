@@ -1,80 +1,52 @@
-"""
-Клиент для работы с Yandex GPT API
-Отвечает только за общение с нейросетью
-"""
+import requests
+import json
+from config import YANDEX_API_KEY, YANDEX_GPT_MODEL_URI, GPT_TEMPERATURE, GPT_MAX_TOKENS
 
-import aiohttp
-import logging
-from typing import Optional
-from config import Config
+YANDEX_GPT_URL = "https://llm.api.cloud.yandex.net/foundationModels/v1/completion"
 
-logger = logging.getLogger(__name__)
+def call_yandex_gpt(user_message: str, model_uri: str = YANDEX_GPT_MODEL_URI, temperature: float = GPT_TEMPERATURE, max_tokens: int = GPT_MAX_TOKENS) -> str:
+    """
+    Отправляет запрос к YandexGPT и возвращает ответ.
+    :param user_message: Текст сообщения от пользователя.
+    :param model_uri: URI модели (например, gpt://b1g.../yandexgpt-lite/latest).
+    :param temperature: Температура генерации.
+    :param max_tokens: Максимальное количество токенов.
+    :return: Ответ от GPT или сообщение об ошибке.
+    """
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Api-Key {YANDEX_API_KEY}"
+    }
 
-class YandexGPTClient:
-    """Клиент для Yandex GPT API"""
-    
-    def __init__(self):
-        self.api_key = Config.YANDEX_API_KEY
-        self.folder_id = Config.FOLDER_ID
-        self.base_url = "https://llm.api.cloud.yandex.net/foundationModels/v1/completion"
-        self.timeout = aiohttp.ClientTimeout(total=Config.REQUEST_TIMEOUT)
-        
-    async def process_text(self, style: str, text: str, system_prompt: str) -> str:
-        """
-        Обработать текст с помощью Yandex GPT
-        
-        Args:
-            style: Идентификатор стиля (для логирования)
-            text: Текст для обработки
-            system_prompt: Системный промпт
-            
-        Returns:
-            str: Результат обработки или сообщение об ошибке
-        """
-        
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Api-Key {self.api_key}",
-            "x-folder-id": self.folder_id,
-        }
-        
-        data = {
-            "modelUri": f"gpt://{self.folder_id}/yandexgpt-lite",
-            "completionOptions": {
-                "stream": False,
-                "temperature": 0.7,
-                "maxTokens": 1500,
-            },
-            "messages": [
-                {"role": "system", "text": system_prompt},
-                {"role": "user", "text": text},
-            ],
-        }
-        
-        try:
-            async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                async with session.post(self.base_url, headers=headers, json=data) as response:
-                    
-                    if response.status == 200:
-                        result = await response.json()
-                        text_result = result.get("result", {}).get("alternatives", [{}])[0].get("message", {}).get("text", "")
-                        
-                        if not text_result:
-                            logger.warning(f"Пустой ответ от Yandex GPT для стиля: {style}")
-                            return "⚠️ Нейросеть вернула пустой ответ"
-                        
-                        logger.info(f"Успешный запрос к Yandex GPT, стиль: {style}")
-                        return text_result
-                    
-                    else:
-                        error_text = await response.text()
-                        logger.error(f"Ошибка Yandex GPT: {response.status}, {error_text}")
-                        return f"❌ Ошибка Yandex GPT ({response.status})"
-                        
-        except aiohttp.ClientTimeoutError:
-            logger.error(f"Таймаут запроса к Yandex GPT, стиль: {style}")
-            return "⏳ Таймаут запроса к нейросети. Попробуйте позже."
-            
-        except Exception as e:
-            logger.error(f"Ошибка соединения с Yandex GPT: {e}")
-            return f"💥 Ошибка соединения: {str(e)[:100]}"
+    data = {
+        "modelUri": model_uri,
+        "completionOptions": {
+            "stream": False,
+            "temperature": temperature,
+            "maxTokens": str(max_tokens)
+        },
+        "messages": [
+            {"role": "user", "text": user_message}
+        ]
+    }
+
+    try:
+        response = requests.post(YANDEX_GPT_URL, headers=headers, json=data)
+        response.raise_for_status()
+
+        result = response.json()
+        gpt_text = result['result']['alternatives'][0]['message']['text']
+        return gpt_text.strip()
+
+    except requests.exceptions.RequestException as e:
+        print(f"[ERROR] Ошибка при запросе к YandexGPT: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            print(f"[ERROR] Тело ответа ошибки: {e.response.text}")
+        return "Ошибка при обращении к ИИ. Попробуйте позже."
+    except KeyError as e:
+        print(f"[ERROR] Ошибка при разборе ответа YandexGPT: {e}")
+        print(f"[ERROR] Полный ответ: {result}")
+        return "Ошибка обработки ответа от ИИ. Попробуйте позже."
+    except Exception as e:
+        print(f"[ERROR] Непредвиденная ошибка при вызове GPT: {e}")
+        return "Произошла непредвиденная ошибка."
