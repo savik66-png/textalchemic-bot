@@ -12,8 +12,10 @@ def load_styles_and_prompts():
     try:
         with open(STYLES_PATH, 'r', encoding='utf-8') as f:
             styles_data = json.load(f)
+            print(f"[DEBUG] Загружено {len(styles_data.get('styles', []))} стилей из {STYLES_PATH}") # Отладка
         with open(PROMPTS_PATH, 'r', encoding='utf-8') as f:
             prompts_data = json.load(f)
+            print(f"[DEBUG] Загружено {len(prompts_data.get('prompts', {}))} промптов из {PROMPTS_PATH}") # Отладка
         # Возвращаем список стилей и словарь промптов
         return styles_data.get("styles", []), prompts_data.get("prompts", {})
     except FileNotFoundError as e:
@@ -21,12 +23,20 @@ def load_styles_and_prompts():
         return [], {}
     except json.JSONDecodeError as e:
         print(f"[ERROR] Ошибка парсинга JSON: {e}")
-        # Печатаем начало файла для отладки
+        # Печатаем строку и позицию, где произошла ошибка
+        print(f"[ERROR] Строка {e.lineno}, позиция {e.colno}: {e.msg}")
+        # Печатаем часть файла рядом с ошибкой для отладки
         try:
             with open(STYLES_PATH if "styles.json" in str(e) else PROMPTS_PATH, 'r', encoding='utf-8') as f:
-                print(f"[DEBUG] Начало файла: {f.read()[:200]}") # Печатаем первые 200 символов
-        except Exception:
-            pass
+                lines = f.readlines()
+                # Печатаем 3 строки до и 3 после ошибочной (если возможно)
+                start_line = max(0, e.lineno - 4)
+                end_line = min(len(lines), e.lineno + 3)
+                for i in range(start_line, end_line):
+                    marker = " >>> " if i == e.lineno - 1 else "     "
+                    print(f"{marker}{i+1:3d}: {lines[i].rstrip()}")
+        except Exception as read_e:
+            print(f"[ERROR] Не удалось прочитать файл для отладки: {read_e}")
         return [], {}
 
 def process_text_with_style(original_text: str, style_id: str) -> str:
@@ -44,12 +54,12 @@ def process_text_with_style(original_text: str, style_id: str) -> str:
     # Находим стиль по ID
     selected_style = next((s for s in styles if s["id"] == style_id), None)
     if not selected_style:
-        print(f"[DEBUG] Стиль с id '{style_id}' не найден среди загруженных.") # Отладочный вывод
+        print(f"[DEBUG] Стиль с id '{style_id}' не найден среди загруженных. Всего стилей: {len(styles)}") # Отладочный вывод
         return f"Стиль '{style_id}' не найден."
 
     prompt_key = selected_style.get("prompt_key")
     if not prompt_key or prompt_key not in prompts:
-        print(f"[DEBUG] Промпт с ключом '{prompt_key}' для стиля '{style_id}' не найден.") # Отладочный вывод
+        print(f"[DEBUG] Промпт с ключом '{prompt_key}' для стиля '{style_id}' не найден. Всего промптов: {len(prompts)}") # Отладочный вывод
         return f"Промпт для стиля '{style_id}' не найден."
 
     # Получаем шаблон промпта
