@@ -13,7 +13,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 
 # ==================== ВРЕМЕННЫЕ КЛЮЧИ ДЛЯ ТЕСТА (УДАЛИТЬ ПОСЛЕ ПРОВЕРКИ!) ====================
 TELEGRAM_TOKEN = "8542210651:AAG7Ze8DlRJwHrOYKPOrTqdnvJzLgcm23KQ"  # ← ВАШ ТОКЕН
-YANDEX_API_KEY = "ВАШ_КЛЮЧ_ЯНДЕКСА_СЮДА"  # ← ЗАМЕНИТЕ НА РЕАЛЬНЫЙ КЛЮЧ!
+YANDEX_API_KEY = "AQVN0crSDPUX8ih2oSeu6TbgAVekrefEYFP_JBU2"  # ← ЗАМЕНИТЕ НА РЕАЛЬНЫЙ КЛЮЧ!
 YANDEX_FOLDER_ID = "b1gf28m0hpqbo55slm6d"  # ← ВАШ КАТАЛОГ
 
 # ==================== ПРОМПТЫ ДЛЯ СТИЛЕЙ (копия из prompts.json) ====================
